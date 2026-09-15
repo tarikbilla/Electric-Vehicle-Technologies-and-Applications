@@ -40,13 +40,20 @@ Every acceptance criterion in the project specification passes.
 
 | Quantity | Simulated | Published | Deviation | Tolerance |
 |---|---:|---:|---:|---:|
-| 0–100 km/h | 6.15 s | 6.1 s | +0.8 % | ±10 % |
+| 0–100 km/h | 6.14 s | 6.1 s | +0.7 % | ±10 % |
 | Top speed | 201 km/h | 201 km/h | 0.0 % | ±5 % |
-| WLTP range, full battery | 497 km | 513 km | −3.2 % | ±10 % |
-| Cycle consumption (battery side) | 11.79 kWh/100 km | 11.70 kWh/100 km | +0.8 % | ±10 % |
+| WLTP range, full battery | 508 km | 513 km | −0.9 % | ±10 % |
+| Cycle consumption (battery side) | 11.45 kWh/100 km | 11.70 kWh/100 km | −2.1 % | ±10 % |
 | Speed points the vehicle could not follow | 0 | — | — | 0 |
 
-Two findings worth carrying into the written report:
+Two checks that were **not** used in any calibration, as independent evidence:
+
+| Steady cruise | Simulated | Real-world measurements |
+|---|---:|---|
+| 100 km/h | 148 Wh/km | 140–150 Wh/km |
+| 130 km/h | 214 Wh/km | 190–210 Wh/km |
+
+Three findings worth carrying into the written report:
 
 **The car is traction-limited off the line, not torque-limited.** The rear tyres
 give out at about 9.3 kN while the motor could deliver 11.0 kN at the wheels.
@@ -60,6 +67,13 @@ limiter removed, the motor's maximum speed of 17 900 rpm caps the car at
 so the force balance never binds. The model reports which of the three possible
 constraints is active: the force balance, the maximum motor speed, or the
 limiter.
+
+**The advertised drag coefficient does not predict range.** The published
+wind-tunnel figure of 0.219 implies a drag area of 0.486 m². The coastdown
+measurement that type approval actually uses implies 0.629 m², 29 % higher,
+because a wind tunnel excludes wheel rotation and cooling airflow. Using the
+textbook decomposition alone under-predicts road load by 15–19 % above 80 km/h.
+Both numbers are correct; only one of them predicts energy.
 
 ---
 
@@ -172,7 +186,7 @@ $ .venv/bin/evsim cycle --cycle wltc_class3b --export wltp.csv
 .venv/bin/python -m pytest
 ```
 
-111 tests, about 20 seconds. They cover:
+125 tests, about a minute. They cover:
 
 - each road-load term against an independent hand calculation;
 - the motor envelope corner point, the constant-power region, and that peak
@@ -180,6 +194,11 @@ $ .venv/bin/evsim cycle --cycle wltc_class3b --export wltp.csv
 - battery energy conservation — a slow full discharge must return the nameplate
   energy, and the current solution must satisfy the circuit equation;
 - both driving cycles against their published statistics, phase by phase;
+- both road-load formulations, including that the coastdown rolling term scales
+  with load and that the textbook form under-predicts at speed;
+- that **no sensitivity parameter is inert** — a real trap, since the
+  wind-tunnel drag coefficient influences nothing while the coastdown model is
+  active, and a tornado chart full of silent zeros would look convincing;
 - the performance and range acceptance criteria;
 - cycle tracking, energy balance, and that an underpowered car is correctly
   *flagged* as unable to follow the profile rather than silently faked;
@@ -370,21 +389,27 @@ The sensitivity study is what makes a result built on 28 estimates defensible.
 Ranked by how much each assumption moves the range prediction across its
 plausible interval:
 
-| Parameter | Interval | Range at low | Range at high | Span of baseline |
-|---|---|---:|---:|---:|
-| HVAC load | 0 – 3000 W | 497 km | 321 km | 35.3 % |
-| Regen power limit | 0 – 90 kW | 388 km | 497 km | 22.0 % |
-| Rolling resistance | 0.0065 – 0.011 | 530 km | 438 km | 18.6 % |
-| Battery capacity | 57.5 – 66 kWh | 457 km | 524 km | 13.4 % |
-| Payload | 0 – 400 kg | 508 km | 460 km | 9.7 % |
-| Drag coefficient | 0.200 – 0.245 | 508 km | 479 km | 5.8 % |
-| Gearbox efficiency | 0.950 – 0.985 | 483 km | 506 km | 4.7 % |
-| Frontal area | 2.10 – 2.35 m² | 505 km | 485 km | 4.0 % |
-| Air density | 1.15 – 1.29 kg/m³ | 504 km | 484 km | 3.9 % |
+| Parameter | Interval | Span | Of baseline |
+|---|---|---:|---:|
+| HVAC load | 0 – 3000 W | 181 km | 35.6 % |
+| Regen power limit | 0 – 90 kW | 115 km | 22.6 % |
+| Battery capacity | 57.5 – 66 kWh | 70 km | 13.7 % |
+| Coastdown F2 (aerodynamic) | 0.340 – 0.440 N/(m/s)² | 52 km | 10.1 % |
+| Coastdown F0 (rolling) | 95 – 140 N | 52 km | 10.1 % |
+| Payload | 0 – 400 kg | 40 km | 7.9 % |
+| Coastdown F1 (driveline) | 1.30 – 2.45 N/(m/s) | 28 km | 5.6 % |
+| Gearbox efficiency | 0.960 – 0.992 | 25 km | 4.8 % |
+| Motor windage loss | 1.0e-6 – 3.0e-6 W/(rad/s)³ | 22 km | 4.3 % |
 
-The aerodynamic and drivetrain assumptions barely matter — which is fortunate,
-because they are the least certain. The auxiliary load matters more than
-anything else, and it is the one parameter a driver actually controls.
+The auxiliary load matters more than anything else, and it is the one parameter
+a driver actually controls. The drivetrain assumptions, which were the hardest
+to pin down, matter least — which is the reassuring outcome: the answer does not
+rest on the values guessed with least confidence.
+
+The case list is built from the **active road-load model**. Varying the
+wind-tunnel drag coefficient does nothing while the coastdown model is in use,
+and a tornado chart showing a silent zero for it would be worse than useless. A
+test asserts that no case is inert.
 
 ---
 
@@ -396,11 +421,11 @@ experiences.
 
 | Scenario | Conditions | Range | Against certification |
 |---|---|---:|---:|
-| WLTP certification | Auxiliaries off, driver only | 497 km | — |
-| Mild weather, 2 occupants | Ventilation only, 20 °C | 438 km | −12 % |
-| Summer, air conditioning | A/C at 30 °C ambient | 367 km | −26 % |
-| Fully loaded, roof box | Five occupants plus roof luggage | 378 km | −24 % |
-| Winter, cabin + battery heating | 0 °C, cold tyres, dense air | 282 km | −43 % |
+| WLTP certification | Auxiliaries off, driver only | 508 km | — |
+| Mild weather, 2 occupants | Ventilation only, 20 °C | 455 km | −10 % |
+| Fully loaded, roof box | Five occupants plus roof luggage | 394 km | −22 % |
+| Summer, air conditioning | A/C at 30 °C ambient | 378 km | −26 % |
+| Winter, cabin + battery heating | 0 °C, cold tyres, dense air | 293 km | −42 % |
 
 ---
 
@@ -413,8 +438,20 @@ results/
 ├── figures/     13 figures, each as PNG (report) and SVG (slides)
 ├── tables/      8 CSV tables
 ├── cycles/      the generated speed profile as CSV
-└── report/      results.md, assumption_register.md, assumption_register.csv
+└── report/      report.md, presentation.md, results.md, assumption_register.{md,csv}
 ```
+
+The two submission deliverables the project brief asks for are generated too:
+
+- **`report.md`** — the written report, about 3 200 words across ten sections
+  with twelve figures, which renders to 12–16 pages. Assumed values appear in
+  red throughout. Convert with `pandoc results/report/report.md -o report.pdf`.
+- **`presentation.md`** — a seventeen-slide deck with speaker notes timed to
+  about twenty minutes. Renders with Marp, reveal.js, or
+  `pandoc -t beamer`.
+
+Both are built from the simulation results, so their numbers, tables and figures
+cannot drift out of step with the code.
 
 | Figure | Content |
 |---|---|
@@ -456,10 +493,11 @@ src/evsim/
   sensitivity.py    tornado analysis and named scenarios
   plotting.py       publication-quality figures
   report.py         result tables and the red-marked assumption register
+  document.py       the written report and the presentation deck
   study.py          end-to-end orchestration
   cli.py            command-line interface
 scripts/run_all.py  regenerates everything
-tests/              111 tests
+tests/              125 tests
 results/            generated output (git-ignored)
 DOCS/               project brief and the PRD
 ```
