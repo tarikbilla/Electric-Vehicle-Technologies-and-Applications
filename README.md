@@ -1,23 +1,44 @@
 # Electric Vehicle Modelling and Simulation
 
-Modelling and simulation of a battery-electric vehicle in Python — semester
-project for **Electric Vehicle Technologies & Applications** (THM, Technische
-Hochschule Mittelhessen).
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Tests](https://img.shields.io/badge/tests-125%20passing-2ea44f)](#tests)
+[![WLTP range](https://img.shields.io/badge/WLTP%20range-within%201%25%20of%20published-2ea44f)](#validation)
+[![Report](https://img.shields.io/badge/report-13%20pages%20%C2%B7%20LaTeX-blue)](DOCS/Electric_Vehicle_Technologies_and_Applications_Report/)
 
-**Reference vehicle:** Tesla Model 3 RWD (Highland, 2024). Single rear motor,
-single-speed reduction gear, LFP battery, European WLTP market.
+A longitudinal model of a battery-electric vehicle, written in Python for the
+**Electric Vehicle Technologies & Applications** semester project at THM
+Technische Hochschule Mittelhessen.
 
-The model derives the vehicle's speed and acceleration characteristics from
-first principles, runs the car over a standardised driving profile, and predicts
-the range achievable on a full battery. Every parameter carries its provenance,
-and the values that are engineering estimates rather than published data are
-flagged and rendered in red throughout the generated report.
+The model resolves the whole energy chain from the road surface to the battery
+terminals, derives the vehicle's speed and acceleration characteristics from the
+force balance, runs the car over a standardised driving profile, and predicts
+the range available from a full battery. It reproduces all three published
+performance figures from a single parameter set, with no figure tuned
+individually.
+
+> **Reference vehicle** — Tesla Model 3 RWD (Highland, 2024): single rear motor,
+> single-speed reduction gear, LFP battery, European WLTP market.
+
+Thirty-two of the forty-nine parameters the model needs are not published by the
+manufacturer and had to be estimated. Every one of them carries its provenance
+in the parameter file and is rendered in red throughout the generated report, as
+the project brief requires.
+
+<p align="center">
+  <img src="results/figures/08_range.png" alt="Discharge to empty over repeated WLTC cycles, and both range methods against the published figure" width="100%">
+</p>
 
 ---
 
 ## Table of contents
 
 - [Results](#results)
+  - [Validation](#validation)
+  - [Speed and acceleration characteristics](#speed-and-acceleration-characteristics)
+  - [Driving profile and cycle simulation](#driving-profile-and-cycle-simulation)
+  - [Where the energy goes](#where-the-energy-goes)
+  - [What the answer depends on](#what-the-answer-depends-on)
+  - [Three findings](#three-findings)
 - [Quick start](#quick-start)
 - [Command-line interface](#command-line-interface)
 - [Tests](#tests)
@@ -36,19 +57,29 @@ flagged and rendered in red throughout the generated report.
 
 ## Results
 
-Every acceptance criterion in the project specification passes.
+Every acceptance criterion in the project specification passes, from one
+parameter set with no figure tuned individually.
 
-| Quantity | Simulated | Published | Deviation | Tolerance |
-|---|---:|---:|---:|---:|
-| 0–100 km/h | 6.14 s | 6.1 s | +0.7 % | ±10 % |
-| Top speed | 201 km/h | 201 km/h | 0.0 % | ±5 % |
-| WLTP range, full battery | 508 km | 513 km | −0.9 % | ±10 % |
-| Cycle consumption (battery side) | 11.45 kWh/100 km | 11.70 kWh/100 km | −2.1 % | ±10 % |
-| Speed points the vehicle could not follow | 0 | — | — | 0 |
+### Validation
 
-Steady-cruise consumption entered no calibration. It follows from the same
-road-load and drivetrain parameters fixed before the cycle was run, so it is an
-independent plausibility check on them:
+| Quantity | Simulated | Published | Deviation | Tolerance | |
+|---|---:|---:|---:|---:|:-:|
+| 0–100 km/h | 6.14 s | 6.1 s | +0.7 % | ±10 % | ✅ |
+| Top speed | 201 km/h | 201 km/h | 0.0 % | ±5 % | ✅ |
+| WLTP range, full battery | 508 km | 513 km | −0.9 % | ±10 % | ✅ |
+| Cycle consumption, battery side | 11.45 kWh/100 km | 11.70 kWh/100 km | −2.1 % | ±10 % | ✅ |
+| Speed points the vehicle could not follow | 0 | — | — | 0 | ✅ |
+
+None of the three published figures was used as a model input. Every parameter
+was fixed from an independent source before the comparison was made.
+
+Three further checks use no manufacturer data at all. Energy conserves at the
+wheel to 9 × 10⁻¹⁰ J, the four-way battery energy balance closes to
+1.3 × 10⁻⁷ J, and the two independent range methods agree to 0.64 %.
+
+Steady-cruise consumption entered no calibration either. It follows from the
+same road-load and drivetrain parameters fixed before the cycle was run, so it
+is an independent plausibility check on them:
 
 | Steady cruise | Simulated |
 |---|---:|
@@ -59,29 +90,103 @@ Both are of the magnitude reported for battery-electric vehicles in real-world
 driving. No measured figure for this vehicle at these speeds was available, so
 this is a sanity check rather than a validation against a certified number.
 
-Three findings worth carrying into the written report:
+### Speed and acceleration characteristics
 
-**The car is traction-limited off the line, not torque-limited.** The rear tyres
-give out at 9.3 kN while the motor could deliver 11.1 kN at the wheels, so the
-tyres set the acceleration up to 79 km/h — 77 % of the time taken to reach
+The force available at the road is the lesser of what the machine can produce
+and what the driven tyres can transmit. For a rear-wheel-drive car the second
+binds first, and the problem is implicit: accelerating transfers load onto the
+driven axle, which raises the limit, which permits more acceleration.
+
+![Traction diagram](results/figures/01_traction_diagram.png)
+
+> **Traction diagram.** Available force against running resistance. The tyre
+> adhesion limit (red, dashed) cuts below the motor envelope up to 79 km/h. The
+> grey dashed curve is the textbook road-load decomposition, which falls
+> progressively short of the coastdown measurement as speed rises.
+
+![Speed and acceleration characteristic curves](results/figures/02_acceleration_characteristic.png)
+
+> **Characteristic curves.** Left: maximum acceleration against speed, with the
+> tyre-limited region shaded. Right: the full-throttle launch from rest, with
+> benchmark times marked.
+
+### Driving profile and cycle simulation
+
+![WLTC Class 3b driving profile](results/figures/05_driving_cycle.png)
+
+> **WLTC Class 3b.** 1800 s over 23.27 km in four phases of rising speed,
+> reaching 131.3 km/h. Synthesised from the published phase statistics; every
+> published statistic is reproduced to within 0.5 %.
+
+![Cycle simulation](results/figures/06_cycle_simulation.png)
+
+> **Cycle simulation.** Demanded and achieved speed, battery power split into
+> traction and regeneration, and state of charge. The demanded trace is entirely
+> hidden behind the achieved one: the powertrain follows the profile at every
+> one of the 1800 steps.
+
+### Where the energy goes
+
+![Energy balance](results/figures/07_energy_balance.png)
+
+> **Energy balance.** Road load takes 77 % of the total, drive-unit losses 17 %,
+> auxiliaries 5.6 % and friction braking 0.3 %. The four terms close against the
+> net battery energy exactly, because the drive-unit loss is measured directly
+> rather than inferred by subtraction.
+
+### What the answer depends on
+
+With thirty-two estimated parameters, the ranking of their influence is the
+result that makes the prediction defensible.
+
+![Sensitivity tornado chart](results/figures/10_sensitivity_tornado.png)
+
+> **Sensitivity.** The auxiliary load dominates at 35.6 % of the baseline range,
+> and it is the one quantity in the list a driver controls. The drivetrain
+> assumptions, which were hardest to pin down, matter least. The case list is
+> built from the active road-load model, so no parameter on the chart is inert.
+
+### Three findings
+
+**1 · The car is traction-limited off the line, not torque-limited.** The rear
+tyres give out at 9.3 kN while the motor could deliver 11.1 kN at the wheels, so
+the tyres set the acceleration up to 79 km/h — 77 % of the time taken to reach
 100 km/h. Both ways of simplifying this fail, in opposite directions: ignoring
 the tyre limit gives 5.41 s, 12 % optimistic, and using the static axle load
 without the dynamic transfer term gives 6.90 s, 12 % pessimistic. Only solving
 the implicit force balance lands on the published 6.1 s.
 
-**Top speed is set by software, not by physics.** With the 201 km/h electronic
-limiter removed, the motor's maximum speed of 17 900 rpm caps the car at
-249 km/h — the tractive force still exceeds the running resistance at that point,
-so the force balance never binds. The model reports which of the three possible
-constraints is active: the force balance, the maximum motor speed, or the
-limiter.
+**2 · Top speed is set by software, not by physics.** With the 201 km/h
+electronic limiter removed, the motor's maximum speed of 17 900 rpm caps the car
+at 249 km/h — the tractive force still exceeds the running resistance at that
+point, so the force balance never binds. The model reports which of the three
+possible constraints is active: the force balance, the maximum motor speed, or
+the limiter.
 
-**The advertised drag coefficient does not predict range.** The published
+**3 · The advertised drag coefficient does not predict range.** The published
 wind-tunnel figure of 0.219 implies a drag area of 0.486 m². The coastdown
 measurement that type approval actually uses implies 0.629 m², 29 % higher,
 because a wind tunnel excludes wheel rotation and cooling airflow. Using the
 textbook decomposition alone under-predicts road load by 12–18 % above 80 km/h.
 Both numbers are correct; only one of them predicts energy.
+
+<details>
+<summary><b>All thirteen generated figures</b></summary>
+
+Every figure below is produced by the simulation, not drawn by hand. Regenerate
+them all with `python scripts/run_all.py`.
+
+| | |
+|---|---|
+| ![](results/figures/01_traction_diagram.png) **01** Traction diagram | ![](results/figures/02_acceleration_characteristic.png) **02** Characteristic curves |
+| ![](results/figures/03_power_and_gradeability.png) **03** Power and gradeability | ![](results/figures/04_efficiency_map.png) **04** Drive-unit efficiency map |
+| ![](results/figures/05_driving_cycle.png) **05** WLTC Class 3b profile | ![](results/figures/06_cycle_simulation.png) **06** Cycle simulation |
+| ![](results/figures/07_energy_balance.png) **07** Energy balance | ![](results/figures/08_range.png) **08** Range and discharge |
+| ![](results/figures/09_constant_speed_range.png) **09** Constant-speed range | ![](results/figures/10_sensitivity_tornado.png) **10** Sensitivity tornado |
+| ![](results/figures/11_scenarios.png) **11** Real-world scenarios | ![](results/figures/12_parameter_provenance.png) **12** Parameter provenance |
+| ![](results/figures/13_nedc_cycle.png) **13** NEDC profile | |
+
+</details>
 
 ---
 
@@ -439,47 +544,32 @@ experiences.
 
 ## Generated output
 
-`scripts/run_all.py` writes everything under `results/`:
+### The submission documents
+
+| Deliverable | Location | Notes |
+|---|---|---|
+| **Written report** | [`DOCS/…_Report/main.pdf`](DOCS/Electric_Vehicle_Technologies_and_Applications_Report/main.pdf) | 13 pages, two-column LaTeX, 13 figures, 11 tables, 18 references. Assumed values in red. |
+| **Report source** | [`main.tex`](DOCS/Electric_Vehicle_Technologies_and_Applications_Report/main.tex) | Build with `make` in that directory |
+| **Presentation** | `results/report/presentation.md` | 18 slides with speaker notes timed to 20 minutes. Renders with Marp, reveal.js or `pandoc -t beamer` |
+| **Assumption register** | `results/report/assumption_register.md` | All 32 estimated values with their basis, rendered in red |
+
+### Everything the study writes
+
+`python scripts/run_all.py` regenerates all of it in about 80 seconds:
 
 ```
 results/
 ├── figures/     13 figures, each as PNG (report) and SVG (slides)
 ├── tables/      8 CSV tables
 ├── cycles/      the generated speed profile as CSV
-└── report/      report.md, presentation.md, results.md, assumption_register.{md,csv}
+└── report/      report.md, presentation.md, results.md,
+                 assumption_register.{md,csv}
 ```
 
-The two submission deliverables the project brief asks for are generated too:
-
-- **`report.md`** — the written report, about 3 200 words across ten sections
-  with twelve figures, which renders to 12–16 pages. Assumed values appear in
-  red throughout. Convert with `pandoc results/report/report.md -o report.pdf`.
-- **`presentation.md`** — a seventeen-slide deck with speaker notes timed to
-  about twenty minutes. Renders with Marp, reveal.js, or
-  `pandoc -t beamer`.
-
-Both are built from the simulation results, so their numbers, tables and figures
-cannot drift out of step with the code.
-
-| Figure | Content |
-|---|---|
-| 01 | Traction diagram: available force against running resistance |
-| 02 | Speed and acceleration characteristic curves |
-| 03 | Power envelope and gradeability |
-| 04 | Drive-unit efficiency map |
-| 05 | WLTP driving profile with its four phases |
-| 06 | Speed, battery power and state of charge over the cycle |
-| 07 | Energy balance over one cycle |
-| 08 | Discharge to empty, and validation against the published range |
-| 09 | Range and consumption at steady cruising speed |
-| 10 | Sensitivity tornado chart |
-| 11 | Real-world scenarios |
-| 12 | Parameter provenance |
-| 13 | NEDC driving profile |
-
-`results/report/results.md` collects the headline numbers, every table and every
-figure into one document. It supplies the material for the 12–20 page written
-submission; it is not itself the report.
+Every number, table and figure in the report comes from the same run, so the
+prose cannot drift out of step with the model. The claims most prone to drift —
+the traction-limited extent, the road-load shortfall — are computed by the
+report generator rather than typed by hand.
 
 ---
 
@@ -584,21 +674,32 @@ single most influential parameter, worth 35 % of the baseline range.
 
 ## References
 
-1. UNECE Regulation No. 83, Annex 4a — NEDC test procedure and cycle tables.
-2. UNECE Global Technical Regulation No. 15 — Worldwide harmonised Light
-   vehicles Test Procedure (WLTP), Class 3b cycle statistics.
-3. M. Ehsani, Y. Gao, S. Longo, K. Ebrahimi, *Modern Electric, Hybrid Electric
-   and Fuel Cell Vehicles*, 3rd ed., CRC Press — longitudinal dynamics,
-   rotating-mass factor.
-4. J. Larminie, J. Lowry, *Electric Vehicle Technology Explained*, 2nd ed.,
-   Wiley — the four-term motor loss model.
-5. M. Mitschke, H. Wallentowitz, *Dynamik der Kraftfahrzeuge*, 5th ed.,
-   Springer — rolling resistance, axle-load transfer.
-6. Tesla EU technical data sheets and type-approval documentation, Model 3 RWD
-   2024.
+The report's full bibliography, 18 entries with DOIs and document numbers, is in
+[`sample.bib`](DOCS/Electric_Vehicle_Technologies_and_Applications_Report/sample.bib).
+Every entry was verified against a primary source. The ones that shape the model
+most:
+
+1. UNECE, *Regulation No. 83* (E/ECE/324/Rev.1/Add.82/Rev.5), Annex 4a — the
+   NEDC segment tables.
+2. UNECE, *Global Technical Regulation No. 15* (ECE/TRANS/180/Add.15) — WLTP,
+   Class 3b cycle statistics.
+3. US EPA, *Determination and Use of Vehicle Road-Load Force and Dynamometer
+   Settings*, Guidance Letter CD-15-04, 2015 — the coastdown road-load form.
+4. M. Ehsani, Y. Gao, S. Longo, K. M. Ebrahimi, *Modern Electric, Hybrid
+   Electric and Fuel Cell Vehicles*, 3rd ed., CRC Press, 2018 — longitudinal
+   dynamics, rotating-mass factor.
+5. J. Larminie, J. Lowry, *Electric Vehicle Technology Explained*, 2nd ed.,
+   Wiley, 2012 — the four-term drive-unit loss model.
+6. M. Mitschke, H. Wallentowitz, *Dynamik der Kraftfahrzeuge*, 5th ed.,
+   Springer Vieweg, 2014 — rolling resistance, axle-load transfer.
+7. L. Guzzella, A. Sciarretta, *Vehicle Propulsion Systems*, 3rd ed., Springer,
+   2013 — backward-facing quasi-static simulation.
+8. Tesla, Inc., *Model 3 Owner's Manual (Europe)* — published vehicle
+   specifications.
 
 ---
 
 ## Licence
 
-Academic coursework. Reuse freely with attribution.
+Academic coursework for THM Technische Hochschule Mittelhessen. Reuse freely
+with attribution.
