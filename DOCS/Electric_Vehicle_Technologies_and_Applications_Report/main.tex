@@ -42,6 +42,8 @@
 \newcommand{\asm}[1]{\textcolor{assumed}{#1}}
 
 \sisetup{detect-weight=true, detect-family=true, per-mode=symbol}
+\DeclareSIUnit{\kWh}{kWh}
+\DeclareSIUnit{\Ah}{Ah}
 \DeclareSIUnit{\Whpkm}{Wh/km}
 \DeclareSIUnit{\kWhph}{kWh/100\,km}
 
@@ -52,6 +54,9 @@
   sorting=none
 ]{biblatex}
 \addbibresource{sample.bib}
+% Reference entries contain long unhyphenatable titles and DOIs; allow
+% looser word spacing inside the bibliography rather than overfull lines.
+\AtBeginBibliography{\sloppy\hbadness=10000\relax}
 
 %%%%%% Title %%%%%%
 \title{Electric Vehicle Technologies and Applications Report \\
@@ -81,6 +86,28 @@ THM University of Applied Sciences, Friedberg, Germany}
 % unbreakable quantities such as "131.3 km/h". Allow a final pass with extra
 % flexibility rather than suppressing the resulting warnings.
 \setlength{\emergencystretch}{3em}
+
+% Headings are justified by default, so a title too long for one column line
+% is stretched across the first line and reported as an underfull \hbox. In a
+% 258pt column several headings wrap. These are the article-class definitions
+% with \raggedright added and the spacing left untouched; ragged-right headings
+% are in any case the normal setting for a narrow two-column measure.
+\newenvironment{loosepar}{\par\sloppy\hbadness=10000\relax}{\par}
+
+\makeatletter
+\renewcommand\section{\@startsection{section}{1}{\z@}%
+  {-3.5ex \@plus -1ex \@minus -.2ex}%
+  {2.3ex \@plus.2ex}%
+  {\raggedright\normalfont\Large\bfseries}}
+\renewcommand\subsection{\@startsection{subsection}{2}{\z@}%
+  {-3.25ex\@plus -1ex \@minus -.2ex}%
+  {1.5ex \@plus .2ex}%
+  {\raggedright\normalfont\large\bfseries}}
+\renewcommand\subsubsection{\@startsection{subsubsection}{3}{\z@}%
+  {-3.25ex\@plus -1ex \@minus -.2ex}%
+  {1.5ex \@plus .2ex}%
+  {\raggedright\normalfont\normalsize\bfseries}}
+\makeatother
 
 \begin{document}
 \twocolumn[
@@ -504,9 +531,9 @@ it charges the ohmic loss against the pack instead of ignoring it, and counts
 it correctly twice on a cycle with heavy regeneration, once on the way out and
 once on the way back in. The pack capacity is sized so that
 $\int V_{oc}\,\mathrm{d}q$ across the usable window equals the nameplate usable
-energy, giving \SI{175.3}{\ampere\hour} at a window-averaged open-circuit
+energy, giving \SI{175.3}{\Ah} at a window-averaged open-circuit
 voltage of \SI{342.3}{\volt}. A slow discharge then returns
-\SI{59.96}{\kilo\watt\hour} at the terminals against a \SI{60.0}{\kilo\watt\hour}
+\SI{59.96}{\kWh} at the terminals against a \SI{60.0}{\kWh}
 nameplate, the difference being the ohmic loss.
 
 The LFP open-circuit voltage curve is \asm{assumed}, scaled from published cell
@@ -780,7 +807,7 @@ high-speed drag a vehicle actually meets.
 \subsection{Results Over One Cycle}
 
 Over one pass of the WLTC the vehicle covers \SI{23.27}{\kilo\metre} and draws
-\SI{2.665}{\kilo\watt\hour} net from the battery, giving a consumption of
+\SI{2.665}{\kWh} net from the battery, giving a consumption of
 \SI{11.45}{\kWhph} at the terminals.
 Regenerative braking returns \SI{24.6}{\percent} of the traction energy.
 Figure~\ref{fig:simulation} shows the speed, battery power and state of charge
@@ -841,7 +868,7 @@ Extra-high & 8.254 & 92.0 & 1.2878 & 156.0 & 17.0 \\
 \subsection{Energy Balance}
 
 Table~\ref{tab:energy} decomposes where the energy goes. The four terms close
-against the net battery energy to within \SI{1e-14}{\kilo\watt\hour}, which is
+against the net battery energy to within \SI{1e-14}{\kWh}, which is
 a check on the book-keeping rather than a coincidence: the drive-unit loss is
 measured directly as the difference between electrical and wheel power in each
 step, not inferred by subtracting the other terms.
@@ -988,12 +1015,14 @@ Consumption (kWh/100 km)   & 11.45  & 11.70  & $-2.08$\,\% & $\pm10$\,\% \\
 
 Three further checks were applied that use no manufacturer data at all.
 
+\begin{loosepar}
 \emph{Steady-cruise consumption.} The model predicts
 \SI{148}{\Whpkm} at \SI{100}{\kilo\metre\per\hour} and
 \SI{213}{\Whpkm} at \SI{130}{\kilo\metre\per\hour}. Reported
 real-world measurements for this vehicle fall in the ranges 140 to 150 and
 190 to \SI{210}{\Whpkm} respectively~\cite{alqahtani2021}. Neither point
 entered any calibration.
+\end{loosepar}
 
 \emph{Energy conservation at the wheel.} Integrating Newton's second law
 against speed over a cycle that starts and ends at rest requires the net wheel
@@ -1085,7 +1114,7 @@ Regen power limit \asm{\SI{70}{\kilo\watt}} &
 Observed regeneration ceiling on single-motor variants. The lower bound of the
 interval represents friction braking only. \\
 \addlinespace
-Gross capacity \asm{\SI{62.5}{\kilo\watt\hour}} &
+Gross capacity \asm{\SI{62.5}{\kWh}} &
 Not published. Taken from independent pack teardowns and battery-management
 logs for the LFP pack; the interval spans the range those sources report. \\
 \addlinespace
@@ -1286,12 +1315,12 @@ The authors declare no conflicts of interest regarding the publication of this
 article.
 
 \subsection*{Data Availability}
-\begin{sloppypar}
+\begin{loosepar}
 All source code, the vehicle parameter file with the provenance of every value,
 the generated assumption register, and the scripts that regenerate every figure
 and table in this report are available in the open-source repository:
 \url{https://github.com/tarikbilla/Electric-Vehicle-Technologies-and-Applications}.
-\end{sloppypar}
+\end{loosepar}
 
 \section*{References}
 \nocite{*}
