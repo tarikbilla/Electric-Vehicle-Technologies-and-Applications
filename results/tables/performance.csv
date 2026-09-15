@@ -1,0 +1,9 @@
+quantity,value,unit
+Top speed,201.0,km/h
+Maximum acceleration (from rest),4.794844358407079,m/s^2
+Maximum wheel power,203.84000000000006,kW
+Maximum tractive force,9.30008011756637,kN
+0-50 km/h,2.951776871521598,s
+0-100 km/h,6.141330985231353,s
+0-130 km/h,8.926039108721358,s
+0-160 km/h,12.738838628533378,s

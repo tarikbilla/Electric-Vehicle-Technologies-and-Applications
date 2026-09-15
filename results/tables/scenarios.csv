@@ -1,0 +1,6 @@
+scenario,note,range_km,consumption_kwh_per_100km,delta_vs_certification_pct
+WLTP certification,"Auxiliaries off, driver only, standard air",508.30309187269796,11.452121979069757,0.0
+"Mild weather, 2 occupants","Ventilation only, 20 degC",455.19066042033086,12.842082598185675,-10.44896879471842
+"Summer, air conditioning","A/C at 30 degC ambient, thinner air",378.37541137385904,15.458847975901781,-25.561064368142517
+"Winter, cabin + battery heating","Heating at 0 degC, cold and stiff tyres, dense air",292.8219439473536,20.029104671816732,-42.39225599267269
+"Fully loaded, roof box",Five occupants plus luggage on the roof,394.10936699846843,14.704448630238081,-22.465675833982296

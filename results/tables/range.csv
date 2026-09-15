@@ -1,0 +1,10 @@
+quantity,value
+range_integrated_km,508.30309187269796
+range_analytic_km,511.5767403564118
+method_disagreement_pct,-0.6399134724993754
+consumption_kwh_per_100km,11.452121979069757
+consumption_wh_per_km,114.52121979069757
+consumption_internal_wh_per_km,117.28445659628396
+usable_energy_kwh,60.0
+energy_delivered_kwh,58.378305151990936
+cycles_completed,21.845878787460702

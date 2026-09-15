@@ -1,0 +1,33 @@
+parameter,value,unit,rationale
+aerodynamics.frontal_area,2.22,m^2,Not published. Estimated as 0.83 * width * height = 0.83*1.933*1.441
+auxiliaries.base_load,300.0,W,"12 V systems, pumps, computer, lights - measured idle draw ~250-350 W"
+auxiliaries.hvac_load,0.0,W,WLTP certification is run with auxiliaries off; set >0 for a real-world scenario
+battery.gross_capacity,62.5,kWh,"Not published. LFP pack, teardown/BMS logs report ~62.5 kWh gross"
+battery.internal_resistance,0.075,ohm,Pack-level DC resistance at 25 degC; typical for a 60 kWh LFP pack
+battery.max_charge_power,70000.0,W,Regenerative braking limited to ~70 kW on single-motor Model 3
+battery.max_discharge_power,220000.0,W,Must cover motor peak power plus losses
+battery.nominal_voltage,345.0,V,"LFP prismatic cells, ~106s configuration at 3.25 V/cell nominal"
+battery.usable_fraction,0.96,-,LFP allows a wide SOC window (charge to 100 % recommended); 4 % buffer
+mass.cg_height,0.46,m,Skateboard battery pack -> very low CG; literature range 0.45-0.50 m for Model 3
+mass.rear_axle_static_load_fraction,0.52,-,Measured 48/52 front/rear distribution reported for single-motor Model 3
+mass.rotational_mass_factor,1.04,-,"Typical single-speed BEV value (Ehsani, Modern Electric Vehicles, Tab. 2.2); lambda = 1 + J_eq/(m*r^2)"
+mass.test_payload,100.0,kg,WLTP test mass = kerb + 25 kg; 100 kg chosen as driver+luggage for a realistic single-occupant run
+motor.continuous_power_fraction,0.55,-,Thermal derating; continuous rating typically 50-60 % of peak for liquid-cooled PMSM
+motor.loss_k_copper,0.09042,W/(N*m)^2,"Least-squares fit to seven operating points typical of a liquid-cooled automotive PMSM drive unit: 97 % peak, 92.5 % at peak power, 88 % at light load / high speed (motorway cruise), 80 % at light load / low speed"
+motor.loss_k_iron,0.66898,W/(rad/s),"Fitted with loss_k_copper, see above"
+motor.loss_k_windage,1.7896e-06,W/(rad/s)^3,"Fitted with loss_k_copper. An earlier hand-tuned value of 5.0e-6 made windage 73 % of all loss at motorway cruise, which is unphysical for a sealed oil-cooled rotor; the fitted value puts it at 26 %"
+motor.loss_p_constant,185.9,W,Fitted with loss_k_copper. Inverter switching and control electronics standby losses
+motor.max_speed,17900.0,rpm,Not published; Model 3 rear drive unit teardowns report ~17 900-18 000 rpm
+regeneration.blend_speed,4.2,m/s,Linear blend-in of regen between cutoff (5 km/h) and 15 km/h
+regeneration.cutoff_speed,1.4,m/s,"Regen blends out below ~5 km/h, friction brakes take over"
+regeneration.max_regen_power,70000.0,W,Observed regen ceiling on single-motor Model 3 (~70 kW)
+regeneration.max_regen_torque_fraction,0.6,-,Regen shaft torque limited to ~60 % of traction peak torque
+road_load.coastdown_f0,115.65,N,"EPA coastdown target A = 26.0 lbf for Model 3 RWD, converted to SI. Certification values vary with model year and wheel size"
+road_load.coastdown_f1,1.8906,N/(m/s),"EPA coastdown target B = 0.1900 lbf/mph, converted to SI"
+road_load.coastdown_f2,0.37836,N/(m/s)^2,"EPA coastdown target C = 0.01700 lbf/mph^2, converted to SI"
+road_load.coastdown_test_mass,1900.0,kg,"Mass the coastdown was run at (EPA test weight = kerb + ~136 kg). The F0 term is rolling resistance and is proportional to normal load, so it is scaled by m/m_test when the vehicle is loaded differently. Without this the model would say payload is almost free, because the inertia it adds is largely returned by regeneration"
+transmission.efficiency,0.98,-,"Load-dependent meshing loss ONLY, for a single-stage helical reduction plus differential. The no-load churning, bearing and seal drag is already inside the coastdown F0/F1 terms - an electric drive unit cannot be disconnected during a coastdown - so a flat 0.96-0.97, which lumps both together, would count that drag twice"
+transmission.gear_ratio,9.0,-,Not published; independent teardown of Model 3 rear drive unit gives 9.0:1
+tyres.peak_friction_coefficient,0.85,-,"Dry asphalt, summer tyre, launch-control traction limit"
+tyres.rolling_resistance_coefficient,0.008,-,EU tyre label class A-B low rolling resistance OE tyre; f_r = 0.008 at 20 degC
+tyres.rolling_resistance_speed_coefficient,1.2e-06,s^2/m^2,"f_r(v) = f_r0 + k*v^2, k typical for passenger car radials (Mitschke/Wallentowitz)"

@@ -1,0 +1,5 @@
+quantity,unit,simulated,published,deviation_pct,tolerance_pct,pass,note
+0-100 km/h,s,6.141330985231353,6.1,0.6775571349402246,10.0,True,
+Top speed,km/h,201.0,201.0,0.0,5.0,True,
+WLTP range (full battery),km,508.30309187269796,513.0,-0.9155766330023466,10.0,True,
+Cycle consumption (battery side),kWh/100km,11.452121979069757,11.695906432748538,-2.0843570789535812,10.0,True,derived from the published range; the 13.2 kWh/100km type-approval figure is measured at the wall socket and includes charging losses
