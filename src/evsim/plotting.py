@@ -78,8 +78,15 @@ def plot_tractive_force(result: PerformanceResult, outdir: Path) -> Path:
         label="Force available",
     )
     ax.plot(v, result.resistance / 1e3, color=NEUTRAL, label="Total running resistance")
-    ax.plot(v, result.rolling / 1e3, color=SECONDARY, ls=":", label="Rolling resistance")
+    ax.plot(
+        v, result.mechanical / 1e3, color=SECONDARY, ls=":",
+        label="Rolling + driveline drag",
+    )
     ax.plot(v, result.aerodynamic / 1e3, color=ACCENT, ls=":", label="Aerodynamic drag")
+    ax.plot(
+        v, result.resistance_physical / 1e3, color=NEUTRAL, ls="--", lw=1.1, alpha=0.8,
+        label="Textbook decomposition",
+    )
 
     top = result.top_speed * MPS_TO_KPH
     ax.axvline(top, color="k", ls="-.", lw=1.0)
@@ -286,18 +293,20 @@ def plot_energy_balance(result: SimulationResult, outdir: Path) -> Path:
     aux_kwh = result.energy_auxiliary / 3.6e6
     brake_kwh = result.energy_friction_brake / 3.6e6
     traction_kwh = result.energy_traction / 3.6e6
-    losses_kwh = traction_kwh - road_kwh - brake_kwh
+    losses_kwh = result.energy_drivetrain_loss / 3.6e6
 
     fig, (left, right) = plt.subplots(1, 2, figsize=(11.2, 4.4))
 
-    labels = ["Road load\n(rolling + drag)", "Drivetrain\nlosses", "Friction\nbrakes",
+    labels = ["Road load\n(rolling + drag)", "Drive-unit\nlosses", "Friction\nbrakes",
               "Auxiliaries"]
     values = [road_kwh, max(losses_kwh, 0.0), brake_kwh, aux_kwh]
     colours = [PRIMARY, ACCENT, NEUTRAL, SECONDARY]
     bars = left.bar(labels, values, color=colours)
     left.bar_label(bars, fmt="%.3f", fontsize=8.5, padding=2)
     left.set_ylabel("Energy over one cycle [kWh]")
-    left.set_title("Energy expenditure")
+    left.set_title(
+        f"Where the {sum(values):.3f} kWh goes"
+    )
     left.tick_params(axis="x", labelsize=8.5)
 
     flow_labels = ["Drawn from\nbattery", "Recovered by\nregeneration", "Net from\nbattery"]

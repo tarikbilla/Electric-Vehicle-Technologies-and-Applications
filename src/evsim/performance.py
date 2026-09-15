@@ -46,8 +46,9 @@ class PerformanceResult:
     adhesion_force: np.ndarray         # N, tyre limit
     available_force: np.ndarray        # N, min of the two
     resistance: np.ndarray             # N
-    rolling: np.ndarray                # N
+    mechanical: np.ndarray             # N, rolling + driveline drag
     aerodynamic: np.ndarray            # N
+    resistance_physical: np.ndarray    # N, textbook decomposition, for comparison
     acceleration: np.ndarray           # m/s^2, maximum
     wheel_power: np.ndarray            # W, available at the wheels
     top_speed: float                   # m/s
@@ -171,9 +172,7 @@ class PerformanceModel:
         force = np.minimum(
             self.powertrain.max_tractive_force(v), self.adhesion_limit(v)
         )
-        flat = np.asarray(
-            road.rolling_resistance(v) + road.aerodynamic_drag(v), dtype=float
-        )
+        flat = np.asarray(road.running_resistance(v), dtype=float)
         sin_alpha = np.clip((force - flat) / (road.mass * road.gravity), -1.0, 1.0)
         return np.tan(np.arcsin(sin_alpha)) * 100.0
 
@@ -187,9 +186,15 @@ class PerformanceModel:
         tractive = self.powertrain.max_tractive_force(v)
         adhesion = self.adhesion_limit(v)
         available = np.minimum(tractive, adhesion)
-        rolling = np.asarray(self.road.rolling_resistance(v), dtype=float)
-        aero = np.asarray(self.road.aerodynamic_drag(v), dtype=float)
+        parts = self.road.components(v)
+        mechanical = np.asarray(parts["mechanical"], dtype=float)
+        aero = np.asarray(parts["aerodynamic"], dtype=float)
         resistance = np.asarray(self.road.resistance(v), dtype=float)
+        from .roadload import PHYSICAL
+
+        resistance_physical = np.asarray(
+            self.road.with_model(PHYSICAL).resistance(v), dtype=float
+        )
         acceleration = (available - resistance) / self.road.effective_mass()
 
         launch_time, launch_speed = self.launch(top_speed * 0.999)
@@ -214,8 +219,9 @@ class PerformanceModel:
             adhesion_force=adhesion,
             available_force=available,
             resistance=resistance,
-            rolling=rolling,
+            mechanical=mechanical,
             aerodynamic=aero,
+            resistance_physical=resistance_physical,
             acceleration=acceleration,
             wheel_power=available * v,
             top_speed=top_speed,

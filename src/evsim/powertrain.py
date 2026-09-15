@@ -232,7 +232,12 @@ class Powertrain:
             self.wheel_radius * max(self.gear_efficiency, 1e-6)
         )
 
-        # Power ceiling: P_batt = F * v * eta  ->  F = P / (v * eta)
+        # Power ceiling, applied at the WHEEL: F = P_limit / v.  Because the
+        # gearbox and the machine both take a cut on the way to the battery,
+        # the power that actually arrives is below ``max_regen_power`` by those
+        # losses - a few per cent.  The cap is therefore slightly conservative
+        # and the rated ceiling is never exceeded, which is the safe direction
+        # for a limit.
         with np.errstate(divide="ignore", invalid="ignore"):
             force_power = np.where(
                 v > 1e-3, self.max_regen_power / np.maximum(v, 1e-3), np.inf

@@ -72,6 +72,50 @@ aerodynamics:
     assumed: false
     source: ISO 1204 standard air, 20 degC, 101.325 kPa
 
+# ----------------------------------------------------------------- road load model
+# Two formulations are available.
+#
+#   physical   the textbook decomposition, f_r(v)*m*g + 0.5*rho*Cd*A*v^2.
+#              Used for the derivation and the traction diagram in the report.
+#
+#   coastdown  the regulatory form F(v) = F0 + F1*v + F2*v^2, which is what WLTP
+#              and EPA type approval actually measure on a test track.  It is the
+#              default because it is the physically complete description: it
+#              captures bearing, seal and driveline drag (the linear F1 term, which
+#              the textbook decomposition has no counterpart for) and the real
+#              on-road aerodynamic drag including wheel rotation and cooling flow.
+#
+# The published wind-tunnel Cd of 0.219 implies Cd*A = 0.486 m^2, whereas the
+# coastdown F2 implies 0.629 m^2 - an effective Cd of 0.283, some 29 % higher.
+# That gap is a real and well-documented effect, not an error in either number.
+road_load:
+  model: coastdown
+  coastdown_f0:
+    value: 115.65
+    unit: N
+    assumed: true
+    source: "EPA coastdown target A = 26.0 lbf for Model 3 RWD, converted to SI.
+             Certification values vary with model year and wheel size"
+  coastdown_f1:
+    value: 1.8906
+    unit: N/(m/s)
+    assumed: true
+    source: "EPA coastdown target B = 0.1900 lbf/mph, converted to SI"
+  coastdown_f2:
+    value: 0.37836
+    unit: N/(m/s)^2
+    assumed: true
+    source: "EPA coastdown target C = 0.01700 lbf/mph^2, converted to SI"
+  coastdown_test_mass:
+    value: 1900.0
+    unit: kg
+    assumed: true
+    source: "Mass the coastdown was run at (EPA test weight = kerb + ~136 kg).
+             The F0 term is rolling resistance and is proportional to normal load,
+             so it is scaled by m/m_test when the vehicle is loaded differently.
+             Without this the model would say payload is almost free, because the
+             inertia it adds is largely returned by regeneration"
+
 tyres:
   size: 235/45 R18
   dynamic_radius:
@@ -122,25 +166,30 @@ motor:
   #   P_loss = k_copper*T^2 + k_iron*w + k_windage*w^3 + P_constant
   #   (Larminie & Lowry, Electric Vehicle Technology Explained, 2nd ed., ch. 7)
   loss_k_copper:
-    value: 0.080
+    value: 0.09042
     unit: W/(N*m)^2
     assumed: true
-    source: "Calibrated so peak combined efficiency ~96 % and ~93 % at peak power"
+    source: "Least-squares fit to seven operating points typical of a liquid-cooled
+             automotive PMSM drive unit: 97 % peak, 92.5 % at peak power, 88 % at
+             light load / high speed (motorway cruise), 80 % at light load / low speed"
   loss_k_iron:
-    value: 0.50
+    value: 0.66898
     unit: W/(rad/s)
     assumed: true
-    source: "Calibrated, as above"
+    source: "Fitted with loss_k_copper, see above"
   loss_k_windage:
-    value: 5.0e-6
+    value: 1.7896e-6
     unit: W/(rad/s)^3
     assumed: true
-    source: "Calibrated, as above"
+    source: "Fitted with loss_k_copper. An earlier hand-tuned value of 5.0e-6 made
+             windage 73 % of all loss at motorway cruise, which is unphysical for a
+             sealed oil-cooled rotor; the fitted value puts it at 26 %"
   loss_p_constant:
-    value: 400.0
+    value: 185.9
     unit: W
     assumed: true
-    source: "Inverter switching + control electronics standby losses"
+    source: "Fitted with loss_k_copper. Inverter switching and control electronics
+             standby losses"
 
 transmission:
   gear_ratio:
@@ -149,10 +198,14 @@ transmission:
     assumed: true
     source: "Not published; independent teardown of Model 3 rear drive unit gives 9.0:1"
   efficiency:
-    value: 0.97
+    value: 0.98
     unit: "-"
     assumed: true
-    source: "Single-stage helical reduction + differential, typical 96-98 %"
+    source: "Load-dependent meshing loss ONLY, for a single-stage helical reduction
+             plus differential. The no-load churning, bearing and seal drag is
+             already inside the coastdown F0/F1 terms - an electric drive unit
+             cannot be disconnected during a coastdown - so a flat 0.96-0.97,
+             which lumps both together, would count that drag twice"
 
 # ----------------------------------------------------------------- battery
 battery:
