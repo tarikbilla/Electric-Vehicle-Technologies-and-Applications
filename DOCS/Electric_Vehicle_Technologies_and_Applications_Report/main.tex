@@ -10,9 +10,8 @@
 \usepackage{subcaption}
 \usepackage{amsmath}
 \usepackage{booktabs}
-\usepackage{dblfloatfix}
-\usepackage{gensymb}
 \usepackage{hyperref}
+\usepackage{xurl}
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{float}
@@ -73,6 +72,15 @@ THM University of Applied Sciences, Friedberg, Germany}
 
 %%%%%% Spacing %%%%%%
 \setstretch{1.15}
+
+% Do not stretch short columns to full height; with this many exactly-placed
+% floats that is both unachievable and undesirable.
+\raggedbottom
+
+% Narrow columns leave the paragraph breaker little room, particularly around
+% unbreakable quantities such as "131.3 km/h". Allow a final pass with extra
+% flexibility rather than suppressing the resulting warnings.
+\setlength{\emergencystretch}{3em}
 
 \begin{document}
 \twocolumn[
@@ -191,7 +199,7 @@ Table~\ref{tab:nomen} lists the symbols used throughout.
 \caption{Nomenclature.}
 \label{tab:nomen}
 \footnotesize
-\begin{tabular}{@{}llp{0.42\columnwidth}@{}}
+\begin{tabular}{@{}ll>{\raggedright\arraybackslash}p{0.42\columnwidth}@{}}
 \toprule
 \textbf{Sym.} & \textbf{Unit} & \textbf{Quantity} \\
 \midrule
@@ -983,9 +991,9 @@ Three further checks were applied that use no manufacturer data at all.
 \emph{Steady-cruise consumption.} The model predicts
 \SI{148}{\Whpkm} at \SI{100}{\kilo\metre\per\hour} and
 \SI{213}{\Whpkm} at \SI{130}{\kilo\metre\per\hour}. Reported
-real-world measurements for this vehicle fall in the ranges 140--150 and
-190--210 respectively~\cite{alqahtani2021}. Neither point entered any
-calibration.
+real-world measurements for this vehicle fall in the ranges 140 to 150 and
+190 to \SI{210}{\Whpkm} respectively~\cite{alqahtani2021}. Neither point
+entered any calibration.
 
 \emph{Energy conservation at the wheel.} Integrating Newton's second law
 against speed over a cycle that starts and ends at rest requires the net wheel
@@ -1064,7 +1072,7 @@ form in the machine-readable parameter file.
 range. All values are \asm{estimates}.}
 \label{tab:basis}
 \footnotesize
-\begin{tabular}{@{}p{0.26\columnwidth}p{0.62\columnwidth}@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.26\columnwidth}>{\raggedright\arraybackslash}p{0.62\columnwidth}@{}}
 \toprule
 \textbf{Assumption} & \textbf{Basis} \\
 \midrule
@@ -1278,10 +1286,12 @@ The authors declare no conflicts of interest regarding the publication of this
 article.
 
 \subsection*{Data Availability}
+\begin{sloppypar}
 All source code, the vehicle parameter file with the provenance of every value,
 the generated assumption register, and the scripts that regenerate every figure
 and table in this report are available in the open-source repository:
-\href{https://github.com/tarikbilla/Electric-Vehicle-Technologies-and-Applications}{https://github.com/tarikbilla/Electric-Vehicle-Technologies-and-Applications}.
+\url{https://github.com/tarikbilla/Electric-Vehicle-Technologies-and-Applications}.
+\end{sloppypar}
 
 \section*{References}
 \nocite{*}
