@@ -26,6 +26,37 @@ from .simulation import SimulationResult
 from .units import MPS_TO_KPH, rpm
 
 
+def _road_load_shortfall(road) -> tuple[float, float]:
+    """How far the textbook decomposition falls short above 80 km/h [%, %].
+
+    Computed rather than quoted, so the sentence cannot drift away from the
+    road-load model it describes.
+    """
+    from .roadload import PHYSICAL
+
+    physical = road.with_model(PHYSICAL)
+    speeds = np.array([80.0, 100.0, 130.0, 150.0]) / 3.6
+    shortfall = [
+        (1.0 - float(physical.resistance(v)) / float(road.resistance(v))) * 100.0
+        for v in speeds
+    ]
+    return min(shortfall), max(shortfall)
+
+
+def _traction_limit_extent(performance: PerformanceResult) -> tuple[float, float]:
+    """Speed at which the tyre limit gives way [km/h], and the share of the
+    0-100 km/h time spent below it [%]."""
+    limited = performance.adhesion_force < performance.tractive_force
+    if not limited.any():
+        return 0.0, 0.0
+    v_cross = float(performance.speed[int(np.max(np.flatnonzero(limited)))])
+    t_cross = float(
+        np.interp(v_cross, performance.launch_speed, performance.launch_time)
+    )
+    t_100 = performance.accel_times.get("0-100 km/h", float("nan"))
+    return v_cross * MPS_TO_KPH, t_cross / t_100 * 100.0
+
+
 def _fig(figures: dict[str, Path], key: str, number: int, caption: str) -> list[str]:
     """A numbered figure reference, if that figure was produced."""
     path = figures.get(key)
@@ -70,6 +101,8 @@ def write_report(
     lam = ps["mass.rotational_mass_factor"]
     coastdown_mass = ps["road_load.coastdown_test_mass"]
     validation = list(performance_validation) + list(range_validation_rows)
+    shortfall_low, shortfall_high = _road_load_shortfall(road)
+    v_cross, time_share = _traction_limit_extent(performance)
 
     L: list[str] = []
     A = L.append
@@ -266,9 +299,10 @@ def write_report(
         f"whereas the coastdown quadratic implies "
         f"{road.effective_drag_area():.3f} m squared, higher by "
         f"{(road.drag_discrepancy() - 1) * 100:.0f} per cent. Using the "
-        f"textbook form alone under-predicts the running resistance by 15 to "
-        f"19 per cent above 80 km/h, and the predicted range by a similar "
-        f"margin. Both numbers are correct; they measure different things."
+        f"textbook form alone under-predicts the running resistance by "
+        f"{shortfall_low:.0f} to {shortfall_high:.0f} per cent above 80 km/h, "
+        f"and the predicted range by a similar margin. Both numbers are "
+        f"correct; they measure different things."
     )
     A("")
     A(
@@ -424,9 +458,11 @@ def write_report(
         f"This matters. At rest the tyres can transmit "
         f"{performance.adhesion_force[0] / 1000:.1f} kN while the motor could "
         f"deliver {performance.tractive_force[0] / 1000:.1f} kN, so the "
-        f"vehicle is traction-limited, not torque-limited, for the first "
-        f"third of its run to 100 km/h. Omitting the load transfer makes the "
-        f"predicted acceleration time roughly 15 per cent optimistic."
+        f"vehicle is traction-limited, not torque-limited, up to "
+        f"{v_cross:.0f} km/h - {time_share:.0f} per cent of the time it takes "
+        f"to reach 100 km/h. Both simplifications fail in opposite directions: "
+        f"ignoring the tyre limit is optimistic, and using the static axle "
+        f"load without the transfer term is pessimistic by a similar margin."
     )
     A("")
     L += _fig(figures, "traction", 3, "Traction diagram: force available against running resistance. The textbook decomposition is shown dashed for comparison.")
@@ -513,10 +549,13 @@ def write_report(
     A("")
     A(
         "A fourth, independent check is the consumption at steady speed, which "
-        "was not used in any calibration. The model gives "
+        "entered no calibration: it follows from the same road-load and "
+        "drivetrain parameters fixed before the cycle was run. The model gives "
         f"{_cruise(ps, 100):.0f} Wh/km at 100 km/h and "
-        f"{_cruise(ps, 130):.0f} Wh/km at 130 km/h, against real-world "
-        "measurements of roughly 140 to 150 and 190 to 210 respectively."
+        f"{_cruise(ps, 130):.0f} Wh/km at 130 km/h. Both are of the magnitude "
+        "reported for battery-electric vehicles in real-world driving, though "
+        "no measured figure for this vehicle at these speeds was available, so "
+        "it is a plausibility check rather than a validation."
     )
     A("")
     if nedc_summary:
@@ -610,10 +649,12 @@ def write_report(
     A("Three findings are worth carrying forward.")
     A("")
     A(
-        "**The car is traction-limited off the line.** The rear tyres, not the "
-        "motor, set the acceleration for the first third of the run to "
-        "100 km/h. A model without dynamic axle-load transfer is optimistic by "
-        "about 15 per cent."
+        f"**The car is traction-limited off the line.** The rear tyres, not the "
+        f"motor, set the acceleration up to {v_cross:.0f} km/h, which is "
+        f"{time_share:.0f} per cent of the time taken to reach 100 km/h. "
+        f"Dropping the tyre limit entirely is optimistic; keeping it but "
+        f"omitting the dynamic load transfer is pessimistic by a similar "
+        f"margin. Only the implicit solution lands on the published figure."
     )
     A("")
     A(
@@ -880,8 +921,12 @@ def write_presentation(
     A("")
     A(image("traction"))
     A("")
+    v_cross, time_share = _traction_limit_extent(performance)
     A(f"Tyres transmit {performance.adhesion_force[0] / 1000:.1f} kN; the motor "
       f"could deliver {performance.tractive_force[0] / 1000:.1f} kN.")
+    A("")
+    A(f"Traction-limited up to **{v_cross:.0f} km/h** - {time_share:.0f} % of the "
+      "time taken to reach 100 km/h.")
     A("")
     A("<!-- Speaker notes (2 min): this is the first real result. Without "
       "dynamic load transfer the acceleration prediction is ~15% optimistic. "

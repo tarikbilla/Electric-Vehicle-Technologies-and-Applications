@@ -25,7 +25,7 @@ mass:
     value: 1765.0
     unit: kg
     assumed: false
-    source: Tesla EU technical data sheet, Model 3 RWD 2024 (kerb mass incl. 75 kg driver)
+    source: Tesla published specifications, Model 3 RWD 2024, Europe (kerb mass incl. 75 kg driver)
   test_payload:
     value: 100.0
     unit: kg
@@ -94,18 +94,22 @@ road_load:
     value: 115.65
     unit: N
     assumed: true
-    source: "EPA coastdown target A = 26.0 lbf for Model 3 RWD, converted to SI.
-             Certification values vary with model year and wheel size"
+    source: "Road-load coefficient of the form EPA guidance CD-15-04 prescribes,
+             converted from 26.0 lbf. Representative of this vehicle class rather
+             than read from a certification record for this exact variant, so it
+             is an estimate. Certification values vary with model year and wheel"
   coastdown_f1:
     value: 1.8906
     unit: N/(m/s)
     assumed: true
-    source: "EPA coastdown target B = 0.1900 lbf/mph, converted to SI"
+    source: "As coastdown_f0, converted from 0.1900 lbf/mph. Represents bearing,
+             seal and driveline drag, which the textbook decomposition omits"
   coastdown_f2:
     value: 0.37836
     unit: N/(m/s)^2
     assumed: true
-    source: "EPA coastdown target C = 0.01700 lbf/mph^2, converted to SI"
+    source: "As coastdown_f0, converted from 0.01700 lbf/mph^2. Implies a drag
+             area 29 % above the wind-tunnel value, which is the expected direction"
   coastdown_test_mass:
     value: 1900.0
     unit: kg
@@ -328,7 +332,7 @@ reference:
     value: 513.0
     unit: km
     assumed: false
-    source: Tesla EU data sheet, Model 3 RWD 2024, 18-inch wheels
+    source: Tesla published WLTP range, Model 3 RWD 2024, 18-inch wheels
   wltp_consumption:
     value: 13.2
     unit: kWh/100km

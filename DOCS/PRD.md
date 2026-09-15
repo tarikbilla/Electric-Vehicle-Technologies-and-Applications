@@ -51,7 +51,7 @@ Required parameter set (values to be taken from manufacturer/homologation data; 
 | ID | Requirement | Status |
 |---|---|---|
 | FR-1 | Load all vehicle and environment parameters from a single versioned file (YAML/JSON); each entry carries `source` and `assumed: true/false`. | Done — `parameters.py` |
-| FR-2 | Compute tractive demand from the road-load equation: F = m·a·λ + m·g·f_r·cos α + ½·ρ·C_d·A·v² + m·g·sin α. | Done — `roadload.py`. Implements both the textbook decomposition and the regulatory coastdown form `F0 + F1·v + F2·v²`, which is the default for energy work. The two differ by 15–19 % above 80 km/h. |
+| FR-2 | Compute tractive demand from the road-load equation: F = m·a·λ + m·g·f_r·cos α + ½·ρ·C_d·A·v² + m·g·sin α. | Done — `roadload.py`. Implements both the textbook decomposition and the regulatory coastdown form `F0 + F1·v + F2·v²`, which is the default for energy work. The two differ by 12–18 % above 80 km/h. |
 | FR-3 | Model the motor as a torque-limited region below base speed and a power-limited region above it, mapped through the gear ratio and wheel radius to tractive force at the wheel. | Done — `powertrain.py` |
 | FR-4 | Derive and plot: tractive force and resistance forces vs speed, maximum acceleration vs speed, and the 0–100 km/h time-speed trace; report top speed (traction-limited or limiter-bound). | Done — `performance.py` |
 | FR-5 | Implement the WLTP Class 3b cycle (1800 s, 1 Hz) from tabulated data; support loading any other 1 Hz speed profile. | Done — `cycles.py`. The official 1800-point table is not redistributed; the profile is synthesised to within 0.5 % of every published phase statistic and flagged as an assumption. An official CSV dropped into `data/cycles/` overrides it. |
@@ -147,7 +147,7 @@ caught, all since fixed:
 | Finding | Effect | Resolution |
 |---|---|---|
 | Windage dominated drive-unit loss at cruise | 79 % efficiency where a real unit gives ~88 % | Loss coefficients refitted to seven realistic operating points |
-| Textbook road load has no linear term and uses a wind-tunnel drag coefficient | Under-predicted running resistance by 15–19 % above 80 km/h | Regulatory coastdown form added and made the default |
+| Textbook road load has no linear term and uses a wind-tunnel drag coefficient | Under-predicted running resistance by 12–18 % above 80 km/h | Regulatory coastdown form added and made the default |
 | Coastdown rolling term did not scale with load | Payload appeared almost free | Constant term scaled by the ratio to the coastdown test mass |
 | Battery power clipping did not re-solve the speed | A power-limited car "followed" the cycle on energy the pack never supplied, reporting 893 km | Every limit now resolved before the step is committed |
 | Loop accumulators and the power trace used different quantities | 23.6 % divergence once any limit bound | Both now accumulate the applied power |

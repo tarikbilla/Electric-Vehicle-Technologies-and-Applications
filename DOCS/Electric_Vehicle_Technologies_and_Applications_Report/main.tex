@@ -1,3 +1,4 @@
+% \documentclass[draft]{article}
 \documentclass[twocolumn]{article}
 %\documentclass[11pt,twoside]{article}
 
@@ -278,9 +279,12 @@ by subsystem, with every estimated value shown \asm{in red}.
 
 \subsection{Parameter Provenance}
 
-Values are drawn from the manufacturer's own technical data where it exists,
-from type-approval and certification documentation where it does not, and from
-the standard automotive literature otherwise~\cite{ehsani2018,mitschke2014}. The
+Values are drawn from the manufacturer's own documentation where it
+exists~\cite{tesla2024}, from the procedures that type approval
+prescribes~\cite{gtr15,epacoastdown} where a measured value is needed but not
+published, and from the standard automotive
+literature~\cite{ehsani2018,mitschke2014} otherwise. Where a quantity could
+not be traced to any of those, it is an estimate and is marked as one. The
 distinction matters and is recorded for every entry in the machine-readable
 parameter file that accompanies the software. Figure~\ref{fig:provenance}
 summarises the split.
@@ -436,7 +440,7 @@ $C_d = 0.219$ implies a drag area $C_d A = \SI{0.486}{\metre\squared}$, whereas
 the coastdown quadratic implies $\SI{0.629}{\metre\squared}$, higher by
 \SI{29}{\percent}. Both numbers are correct; they measure different things.
 Using Equation~\ref{eq:physical} alone under-predicts the running resistance by
-15 to \SI{19}{\percent} above \SI{80}{\kilo\metre\per\hour}, and the energy
+12 to \SI{18}{\percent} above \SI{80}{\kilo\metre\per\hour}, and the energy
 demand by a comparable margin.
 
 \begin{table}[H]
@@ -451,12 +455,12 @@ falls progressively short as speed rises.}
 \textbf{Speed} & \textbf{Coastdown} & \textbf{Textbook} & \textbf{Difference} \\
 km/h & N & N & \% \\
 \midrule
- 30 & 157.7 & 168.2 & $+6.6$ \\
- 50 & 214.9 & 207.0 & $-3.7$ \\
- 80 & 344.5 & 301.7 & $-12.4$ \\
-100 & 460.1 & 389.1 & $-15.4$ \\
-130 & 677.3 & 556.6 & $-17.8$ \\
-150 & 851.3 & 692.5 & $-18.6$ \\
+ 30 & 155.5 & 168.2 & $+8.1$ \\
+ 50 & 212.8 & 207.0 & $-2.7$ \\
+ 80 & 342.4 & 301.7 & $-11.9$ \\
+100 & 458.0 & 389.1 & $-15.0$ \\
+130 & 675.2 & 556.6 & $-17.6$ \\
+150 & 849.2 & 692.5 & $-18.4$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -588,10 +592,17 @@ F_{\mathrm{adh}} =
 
 This is not a refinement of secondary importance. At rest the tyres can
 transmit \SI{9.30}{\kilo\newton} while the motor could deliver
-\SI{11.15}{\kilo\newton}, so the vehicle is traction-limited for roughly the
-first third of its run to \SI{100}{\kilo\metre\per\hour}. A model that omits
-the load transfer predicts an acceleration time about \SI{15}{\percent}
-optimistic.
+\SI{11.15}{\kilo\newton}, so the vehicle is traction-limited up to
+\SI{79}{\kilo\metre\per\hour}, which is \SI{77}{\percent} of the time it
+takes to reach \SI{100}{\kilo\metre\per\hour}.
+
+Both ways of simplifying the tyre limit fail, and they fail in opposite
+directions. Ignoring it altogether leaves only the torque limit and gives
+\SI{5.41}{\second}, \SI{12}{\percent} optimistic. Using the static axle load
+without the transfer term gives \SI{6.90}{\second}, \SI{12}{\percent}
+pessimistic. Only the implicit solution of Equation~\ref{eq:adhesion}, which
+lets the load transfer raise the limit as the vehicle accelerates, lands on the
+published figure.
 
 \subsection{Traction Diagram}
 
@@ -599,8 +610,8 @@ Figure~\ref{fig:traction} plots the available force against the running
 resistance. The motor envelope is flat to the corner point at
 \SI{65.8}{\kilo\metre\per\hour} and falls as $1/v$ thereafter. The adhesion
 limit, drawn in the assumption colour because it depends on an estimated
-friction coefficient, cuts below the envelope up to about
-\SI{78}{\kilo\metre\per\hour}. The dashed curve is the textbook decomposition
+friction coefficient, cuts below the envelope up to
+\SI{79}{\kilo\metre\per\hour}. The dashed curve is the textbook decomposition
 of Equation~\ref{eq:physical}, shown for comparison; the gap between it and the
 solid total resistance is the shortfall quantified in
 Table~\ref{tab:roadload}.
@@ -780,13 +791,17 @@ directly from its regulatory segment table~\cite{unece83}. Because that table
 specifies the cycle as idle, constant-acceleration and constant-speed segments,
 the reconstruction is deterministic. It yields \SI{1180}{\second} and
 \SI{10.975}{\kilo\metre} against the official \SI{11.007}{\kilo\metre}, low by
-\SI{0.29}{\percent}; the residual lies in the published urban segment table,
-whose durations sum to \SI{194}{\second} rather than \SI{195}{\second}.
+\SI{0.29}{\percent}. The extra-urban half reproduces its official
+\SI{6.955}{\kilo\metre} exactly, so the whole shortfall sits in the urban half.
+In the segment list used here those durations sum to \SI{194}{\second} rather
+than the specified \SI{195}{\second}, and the missing second is carried in the
+final idle; whether that reflects a transcription error or an ambiguity in the
+source table was not established.
 
 The NEDC serves to show how much the choice of profile alone changes the
 answer, and is discussed in Section~\ref{sec:validation}. Its much gentler
 speed and acceleration content, visible in Figure~\ref{fig:nedc}, is the reason
-it was replaced by the WLTP~\cite{pavlovic2016,tsiakmakis2019}. Where the WLTC
+it was replaced by the WLTP~\cite{pavlovic2016,tsiakmakis2017}. Where the WLTC
 is built from irregular micro-trips with continuously varying speed, the NEDC
 consists of repeated trapezoidal segments at constant acceleration, a profile
 no driver produces and one that understates both the transient losses and the
@@ -868,8 +883,8 @@ Extra-high & 8.254 & 92.0 & 1.2878 & 156.0 & 17.0 \\
 \subsection{Energy Balance}
 
 Table~\ref{tab:energy} decomposes where the energy goes. The four terms close
-against the net battery energy to within \SI{1e-14}{\kWh}, which is
-a check on the book-keeping rather than a coincidence: the drive-unit loss is
+against the net battery energy to \SI{1.3e-7}{\joule}, which is a check on the
+book-keeping rather than a coincidence: the drive-unit loss is
 measured directly as the difference between electrical and wheel power in each
 step, not inferred by subtracting the other terms.
 
@@ -877,7 +892,8 @@ The road load dominates at \SI{77}{\percent} of the total. Drive-unit losses
 account for \SI{17}{\percent}, the auxiliary load for \SI{5.6}{\percent}, and
 friction braking for only \SI{0.3}{\percent}, the last because the cycle's
 decelerations are gentle enough that the motor absorbs nearly all of them
-within its regeneration limit.
+within its regeneration limit. Figure~\ref{fig:energy} shows the same
+decomposition alongside the flow of energy into and out of the battery.
 
 \begin{table}[H]
 \centering
@@ -946,7 +962,7 @@ Range, integrated method        & 508.3 & km \\
 Range, analytic method          & 511.6 & km \\
 Disagreement between methods    & $-0.64$ & \% \\
 Consumption at the terminals    & 114.5 & Wh/km \\
-Consumption at open circuit     & 117.4 & Wh/km \\
+Consumption at open circuit     & 117.3 & Wh/km \\
 Usable battery energy           & 60.0  & kWh \\
 Cycle repetitions to empty      & 21.8  & -- \\
 \midrule
@@ -970,7 +986,7 @@ Figure~\ref{fig:cruise} shows range and consumption at steady cruising speed,
 a classic electric-vehicle characteristic. The curve has an interior maximum
 because the constant auxiliary load dominates at low speed, where little
 distance is covered per unit time, while aerodynamic drag dominates at high
-speed. The predicted optimum lies near \SI{32}{\kilo\metre\per\hour}.
+speed. The predicted optimum lies near \SI{28}{\kilo\metre\per\hour}.
 
 This curve is also an independent validation, discussed in the next section,
 because none of its points was used in any calibration.
@@ -990,8 +1006,22 @@ because none of its points was used in any calibration.
 \subsection{Against Published Figures}
 
 Table~\ref{tab:validation} compares the model against the three figures the
-manufacturer publishes. None of them was used to calibrate it, and all three
-are reproduced from a single parameter set.
+manufacturer publishes. All three are reproduced from a single parameter set,
+and none of them was used as a model input.
+
+That claim deserves to be stated precisely, because the distinction between
+checking a model and fitting one is easy to blur. Every parameter was set from
+an independent source before the comparison was made: published data where it
+exists, certification coastdown targets for the road load, and efficiency
+targets drawn from the machines literature for the loss model. The published
+acceleration, top speed and range were then used to test the result. Where a
+deviation appeared during development it was resolved by correcting the physics
+rather than by adjusting a parameter until the figure matched. The two
+corrections that mattered are described in
+Section~\ref{sec:model}: the drive-unit loss model originally made windage
+dominant at cruise, and the textbook road-load decomposition omitted the
+driveline term entirely. Both were identified from their own internal
+implausibility, not from the size of the range error.
 
 \begin{table}[H]
 \centering
@@ -1018,10 +1048,15 @@ Three further checks were applied that use no manufacturer data at all.
 \begin{loosepar}
 \emph{Steady-cruise consumption.} The model predicts
 \SI{148}{\Whpkm} at \SI{100}{\kilo\metre\per\hour} and
-\SI{213}{\Whpkm} at \SI{130}{\kilo\metre\per\hour}. Reported
-real-world measurements for this vehicle fall in the ranges 140 to 150 and
-190 to \SI{210}{\Whpkm} respectively~\cite{alqahtani2021}. Neither point
-entered any calibration.
+\SI{213}{\Whpkm} at \SI{130}{\kilo\metre\per\hour}. Neither point entered
+any calibration: both follow from the same road-load and drivetrain parameters
+that were fixed before the cycle was run. Their magnitude is consistent with
+the specific energy consumption reported for battery-electric vehicles in
+real-world driving, which for a compact vehicle monitored over four years
+varied widely with ambient temperature, traffic and road
+grade~\cite{alwreikat2021}. No vehicle-specific measured figure for the
+Model~3 at these speeds was available to the authors, so this is offered as a
+plausibility check rather than as a validation against a certified value.
 \end{loosepar}
 
 \emph{Energy conservation at the wheel.} Integrating Newton's second law
@@ -1119,9 +1154,11 @@ Not published. Taken from independent pack teardowns and battery-management
 logs for the LFP pack; the interval spans the range those sources report. \\
 \addlinespace
 Coastdown $F_0$, $F_1$, $F_2$ &
-Converted to SI from published certification coastdown targets. The intervals
-reflect the variation with wheel size, tyre specification and model
-year~\cite{epacoastdown}. \\
+Coefficients of the form certification prescribes~\cite{epacoastdown},
+converted to SI. The values are representative of this vehicle class rather
+than read from a certification record for this exact variant, which is why all
+three are estimates; the intervals reflect the variation with wheel size, tyre
+specification and model year. \\
 \addlinespace
 Loss coefficients $k_c$, $k_i$, $k_w$, $P_0$ &
 Fitted by least squares to seven operating points representative of a
@@ -1274,9 +1311,11 @@ falls inside the measured real-world band at both \SI{100}{} and
 Three findings are worth carrying forward.
 
 \textbf{The vehicle is traction-limited off the line, not torque-limited.} The
-rear tyres, not the machine, set the acceleration for roughly the first third
-of the run to \SI{100}{\kilo\metre\per\hour}. A model without dynamic
-axle-load transfer is optimistic by about \SI{15}{\percent}.
+rear tyres, not the machine, set the acceleration up to
+\SI{79}{\kilo\metre\per\hour}, which is \SI{77}{\percent} of the time taken
+to reach \SI{100}{\kilo\metre\per\hour}. Dropping the tyre limit entirely is
+\SI{12}{\percent} optimistic; keeping it but omitting the dynamic load transfer
+is \SI{12}{\percent} pessimistic.
 
 \textbf{Top speed is a software decision.} The electronic limiter binds well
 below both the machine's mechanical speed ceiling and the point at which drag
@@ -1286,8 +1325,8 @@ would overcome the available tractive force.
 coastdown-derived drag area exceeds the wind-tunnel figure by
 \SI{29}{\percent}, because a wind tunnel excludes wheel rotation and cooling
 airflow. Both numbers are correct, but only one of them predicts energy, and
-using the textbook decomposition alone under-predicts road load by 15 to
-\SI{19}{\percent} above \SI{80}{\kilo\metre\per\hour}.
+using the textbook decomposition alone under-predicts road load by 12 to
+\SI{18}{\percent} above \SI{80}{\kilo\metre\per\hour}.
 
 Finally, the sensitivity study shows that a result built on thirty-two
 estimated parameters can still be defensible, provided the estimates that

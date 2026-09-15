@@ -46,20 +46,28 @@ Every acceptance criterion in the project specification passes.
 | Cycle consumption (battery side) | 11.45 kWh/100 km | 11.70 kWh/100 km | −2.1 % | ±10 % |
 | Speed points the vehicle could not follow | 0 | — | — | 0 |
 
-Two checks that were **not** used in any calibration, as independent evidence:
+Steady-cruise consumption entered no calibration. It follows from the same
+road-load and drivetrain parameters fixed before the cycle was run, so it is an
+independent plausibility check on them:
 
-| Steady cruise | Simulated | Real-world measurements |
-|---|---:|---|
-| 100 km/h | 148 Wh/km | 140–150 Wh/km |
-| 130 km/h | 214 Wh/km | 190–210 Wh/km |
+| Steady cruise | Simulated |
+|---|---:|
+| 100 km/h | 148 Wh/km |
+| 130 km/h | 213 Wh/km |
+
+Both are of the magnitude reported for battery-electric vehicles in real-world
+driving. No measured figure for this vehicle at these speeds was available, so
+this is a sanity check rather than a validation against a certified number.
 
 Three findings worth carrying into the written report:
 
 **The car is traction-limited off the line, not torque-limited.** The rear tyres
-give out at about 9.3 kN while the motor could deliver 11.0 kN at the wheels.
-Modelling dynamic axle-load transfer onto the driven axle is what brings the
-predicted 0–100 km/h time onto the published figure; without it the model is
-optimistic by roughly 15 %.
+give out at 9.3 kN while the motor could deliver 11.1 kN at the wheels, so the
+tyres set the acceleration up to 79 km/h — 77 % of the time taken to reach
+100 km/h. Both ways of simplifying this fail, in opposite directions: ignoring
+the tyre limit gives 5.41 s, 12 % optimistic, and using the static axle load
+without the dynamic transfer term gives 6.90 s, 12 % pessimistic. Only solving
+the implicit force balance lands on the published 6.1 s.
 
 **Top speed is set by software, not by physics.** With the 201 km/h electronic
 limiter removed, the motor's maximum speed of 17 900 rpm caps the car at
@@ -72,7 +80,7 @@ limiter.
 wind-tunnel figure of 0.219 implies a drag area of 0.486 m². The coastdown
 measurement that type approval actually uses implies 0.629 m², 29 % higher,
 because a wind tunnel excludes wheel rotation and cooling airflow. Using the
-textbook decomposition alone under-predicts road load by 15–19 % above 80 km/h.
+textbook decomposition alone under-predicts road load by 12–18 % above 80 km/h.
 Both numbers are correct; only one of them predicts energy.
 
 ---
