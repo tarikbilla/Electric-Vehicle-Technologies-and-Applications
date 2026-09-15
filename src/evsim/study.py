@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from . import plotting, report
+from . import document, plotting, report
 from .cycles import NEDC_REFERENCE, WLTC_3B_REFERENCE, DrivingCycle, nedc, to_csv
 from .parameters import ParameterSet
 from .performance import PerformanceModel
@@ -25,6 +25,27 @@ from .units import MPS_TO_KPH
 
 def _banner(text: str) -> None:
     print(f"\n{text}\n{'-' * len(text)}")
+
+
+def _cycle_slug(cycle: DrivingCycle) -> str:
+    """Filename stem matching the key the cycle loader looks for."""
+    return cycle.name.split(" (")[0].lower().replace(" ", "").replace("-", "_")
+
+
+def _reference_for(cycle: DrivingCycle) -> dict[str, float]:
+    """Published statistics to validate this cycle against.
+
+    Only the two built-in cycles have published statistics.  A user-supplied
+    profile is validated against itself - an empty reference - rather than
+    silently against the NEDC, which would fill the report with meaningless
+    deviations.
+    """
+    name = cycle.name.upper()
+    if "WLTC" in name or "WLTP" in name:
+        return WLTC_3B_REFERENCE
+    if "NEDC" in name:
+        return NEDC_REFERENCE
+    return {}
 
 
 def run_study(
@@ -72,11 +93,11 @@ def run_study(
 
         # ------------------------------------------------- 2. driving cycle
         _banner(f"2. Driving profile: {cycle.name}")
-        reference = WLTC_3B_REFERENCE if "WLTC" in cycle.name else NEDC_REFERENCE
+        reference = _reference_for(cycle)
         cycle_table = report.cycle_validation_table(cycle, reference)
         print(cycle_table.to_string(index=False, float_format=lambda v: f"{v:9.3f}"))
         figures["cycle"] = plotting.plot_cycle(cycle, figures_dir)
-        to_csv(cycle, outdir / "cycles" / f"{cycle.name.split(' (')[0].lower().replace(' ', '_')}.csv")
+        to_csv(cycle, outdir / "cycles" / f"{_cycle_slug(cycle)}.csv")
 
         # ------------------------------------------------- 3. cycle simulation
         _banner("3. Cycle simulation")
@@ -142,9 +163,16 @@ def run_study(
         nedc_cycle = nedc()
         nedc_range = range_on_cycle(ps, nedc_cycle)
         print(f"  NEDC consumption   {nedc_range.consumption_kwh_per_100km:8.3f} kWh/100 km")
+        nedc_delta = (
+            nedc_range.range_integrated_km / range_result.range_integrated_km - 1
+        ) * 100
         print(f"  NEDC range         {nedc_range.range_integrated_km:8.1f} km  "
-              f"({(nedc_range.range_integrated_km / range_result.range_integrated_km - 1) * 100:+.1f} % "
-              "against WLTP)")
+              f"({nedc_delta:+.1f} % against WLTP)")
+        nedc_summary = {
+            "consumption": nedc_range.consumption_kwh_per_100km,
+            "range": nedc_range.range_integrated_km,
+            "delta": nedc_delta,
+        }
         plotting.plot_cycle(nedc_cycle, figures_dir, name="13_nedc_cycle")
 
     # ----------------------------------------------------- 7. tables & report
@@ -178,15 +206,47 @@ def run_study(
         figures=figures,
         outdir=report_dir,
     )
-    print(f"  {register_md}")
-    print(f"  {register_csv}")
-    print(f"  {results_md}")
+    report_md = document.write_report(
+        ps=ps,
+        cycle=cycle,
+        performance=performance,
+        performance_validation=performance_validation,
+        simulation=simulation,
+        range_result=range_result,
+        range_validation_rows=range_validation_rows,
+        tornado_rows=tornado_rows,
+        scenario_rows=scenario_rows,
+        figures=figures,
+        powertrain=performance_model.powertrain,
+        road=performance_model.road,
+        outdir=report_dir,
+        nedc_summary=nedc_summary,
+    )
+    presentation_md = document.write_presentation(
+        ps=ps,
+        cycle=cycle,
+        performance=performance,
+        performance_validation=performance_validation,
+        simulation=simulation,
+        range_result=range_result,
+        range_validation_rows=range_validation_rows,
+        tornado_rows=tornado_rows,
+        scenario_rows=scenario_rows,
+        figures=figures,
+        road=performance_model.road,
+        outdir=report_dir,
+    )
+
+    for path in (register_md, register_csv, results_md, report_md, presentation_md):
+        print(f"  {path}")
     print(f"  {len(figures) + 1} figures in {figures_dir}")
 
     elapsed = time.perf_counter() - started
     _banner(f"Done in {elapsed:.1f} s")
 
     return {
+        "report": report_md,
+        "presentation": presentation_md,
         "performance": performance,
         "simulation": simulation,
         "range": range_result,

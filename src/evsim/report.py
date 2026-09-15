@@ -34,12 +34,9 @@ def red(text: object) -> str:
 
 
 def _fmt(value: float, digits: int = 4) -> str:
-    """Format a number without trailing noise."""
+    """Format a number to a fixed number of significant figures."""
     if value == 0:
         return "0"
-    magnitude = abs(value)
-    if magnitude >= 1000 or magnitude < 1e-3:
-        return f"{value:.{digits}g}"
     return f"{value:.{digits}g}"
 
 
@@ -350,11 +347,14 @@ def write_results_document(
         ),
         "",
         "The *integrated* method repeats the cycle carrying the state of charge "
-        "forward until the usable window is exhausted, so it captures the rise "
-        "in ohmic loss as the pack voltage falls. The *analytic* method divides "
-        "the usable energy by the cycle consumption and therefore misses that "
-        f"effect, which is why it reads "
-        f"{abs(range_result.disagreement_pct):.1f} % higher.",
+        "forward until the usable window is exhausted, so it sees the ohmic "
+        "loss grow as the open-circuit voltage falls. The *analytic* method "
+        "divides the usable energy by the cycle consumption and so assumes "
+        "consumption is independent of the state of charge. Both divisions are "
+        "made at the open-circuit level, which is where the usable energy is "
+        "defined; the two agree to "
+        f"{abs(range_result.disagreement_pct):.2f} %, which is the cross-check "
+        "on the energy book-keeping.",
         "",
     ]
     lines += figure("range", "Discharge over repeated cycles and validation against the published range")

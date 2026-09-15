@@ -65,7 +65,15 @@ class Battery:
     # --------------------------------------------------------------- capacity
     @property
     def usable_energy(self) -> float:
-        """Usable energy measured at the terminals under nominal conditions [J]."""
+        """Usable energy held in the pack [J].
+
+        Measured at the *open-circuit* level, which is where coulomb counting
+        puts it: it is ``integral(V_oc dQ)`` over the usable SOC window, not
+        ``integral(P_terminal dt)``.  The two differ by the ohmic loss, so a
+        fast discharge delivers less than this at the terminals than a slow one.
+        Callers that divide this by a consumption figure must use a consumption
+        measured on the same open-circuit basis.
+        """
         return self.gross_energy * self.usable_fraction
 
     @property
@@ -73,25 +81,43 @@ class Battery:
         return self.usable_energy / J_PER_KWH
 
     @property
+    def soc_window(self) -> float:
+        """Width of the usable state-of-charge window (0 ... 1)."""
+        width = self.soc_max - self.soc_min
+        if width <= 0:
+            raise ValueError(
+                f"empty SOC window: soc_min={self.soc_min} >= soc_max={self.soc_max}"
+            )
+        return width
+
+    @property
     def mean_open_circuit_voltage(self) -> float:
         """SOC-averaged open-circuit voltage over the usable window [V].
 
         Integrating the OCV curve rather than using the nominal voltage keeps
-        the model self-consistent: a slow full discharge then delivers exactly
-        the nameplate usable energy, independent of the shape of the OCV curve.
+        the model self-consistent: a slow discharge across the window then
+        yields exactly the nameplate usable energy, whatever the shape of the
+        curve.
         """
         soc = np.linspace(self.soc_min, self.soc_max, 501)
-        return float(np.trapezoid(self.open_circuit_voltage(soc), soc) /
-                     (self.soc_max - self.soc_min))
+        return float(
+            np.trapezoid(self.open_circuit_voltage(soc), soc) / self.soc_window
+        )
 
     @property
     def capacity_ah(self) -> float:
-        """Usable charge capacity [A*h].
+        """Total charge capacity of the pack [A*h].
 
-        Sized so that ``integral(V_oc dQ)`` over the usable SOC window equals
-        the nameplate usable energy.
+        Sized so that ``integral(V_oc dQ)`` across the *usable window* equals
+        the nameplate usable energy.  Because SOC is expressed on a 0-1 scale
+        covering the whole pack, a window narrower than 0-1 holds only
+        ``soc_window`` of the pack's charge, so the capacity must be scaled up
+        accordingly.  Omitting that factor made a narrowed window silently
+        under-deliver energy and range in proportion to its width.
         """
-        return self.usable_energy / (self.mean_open_circuit_voltage * 3600.0)
+        return self.usable_energy / (
+            self.mean_open_circuit_voltage * 3600.0 * self.soc_window
+        )
 
     # -------------------------------------------------------------- behaviour
     def open_circuit_voltage(self, soc: ArrayLike) -> np.ndarray:
@@ -123,8 +149,17 @@ class Battery:
         radicand = max(radicand, 0.0)
         return (v_oc - np.sqrt(radicand)) / (2.0 * r_i), limited
 
-    def clip_power(self, power_terminal: float, soc: float) -> tuple[float, bool]:
-        """Clip a demanded terminal power to the discharge/charge/ohmic limits."""
+    def clip_power(
+        self, power_terminal: float, soc: float, dt: float | None = None
+    ) -> tuple[float, bool]:
+        """Clip a demanded terminal power to every limit that applies.
+
+        Those are the discharge and charge power ratings, the resistance-limited
+        ohmic ceiling, and - when ``dt`` is given - the charge actually left
+        inside the usable window.  The last of these matters: without it the
+        final step of a discharge reports a full step of power from a pack that
+        ran empty part way through, creating energy that was never there.
+        """
         limited = False
         if power_terminal > self.max_discharge_power:
             power_terminal, limited = self.max_discharge_power, True
@@ -134,7 +169,59 @@ class Battery:
         ceiling = self.power_limit(soc)
         if power_terminal > ceiling:
             power_terminal, limited = ceiling, True
+
+        if dt is not None and dt > 0:
+            headroom = self._energy_headroom(power_terminal, soc, dt)
+            if headroom is not None and headroom < power_terminal:
+                power_terminal, limited = headroom, True
         return power_terminal, limited
+
+    def _energy_headroom(
+        self, power_terminal: float, soc: float, dt: float
+    ) -> float | None:
+        """Largest terminal power sustainable for ``dt`` without leaving the window.
+
+        Returns ``None`` when the demand is not discharging or the pack has room.
+        """
+        if power_terminal <= 0:
+            return None
+        current, _ = self.current(power_terminal, soc)
+        delta_soc = current * dt / 3600.0 / self.capacity_ah
+        if soc - delta_soc >= self.soc_min:
+            return None
+        # Scale back to exactly reach the floor within this step.
+        available_ah = max(soc - self.soc_min, 0.0) * self.capacity_ah
+        allowed_current = available_ah * 3600.0 / dt
+        v_oc = float(self.open_circuit_voltage(soc))
+        return max(v_oc * allowed_current - allowed_current**2 * self.internal_resistance, 0.0)
+
+    def max_discharge_terminal_power(self, soc: float, dt: float) -> float:
+        """Largest terminal power the pack can deliver for ``dt`` [W].
+
+        The binding constraint is whichever is smallest of the discharge
+        rating, the resistance-limited ohmic ceiling, and the charge still
+        inside the usable window.  Callers use this to size the demand
+        *before* committing to it, so that a power-limited vehicle slows down
+        instead of being handed energy the pack did not have.
+        """
+        applied, _ = self.clip_power(self.max_discharge_power, soc, dt)
+        return max(applied, 0.0)
+
+    def max_charge_terminal_power(self, soc: float, dt: float) -> float:
+        """Largest terminal power the pack can absorb for ``dt`` [W], positive.
+
+        Limited by the charge rating and by the room left below ``soc_max``.
+        """
+        if soc >= self.soc_max - 1e-12:
+            return 0.0
+        room_ah = (self.soc_max - soc) * self.capacity_ah
+        current = room_ah * 3600.0 / max(dt, 1e-9)
+        v_oc = float(self.open_circuit_voltage(soc))
+        # Charging: terminal power = V_oc*I + I^2*R (the pack must be pushed
+        # above its open-circuit voltage), so the magnitude at the terminals is
+        # larger than the energy actually stored.
+        by_room = v_oc * current + current**2 * self.internal_resistance
+        return float(min(self.max_charge_power, by_room))
 
     def step(
         self, power_terminal: float, soc: float, dt: float
@@ -151,14 +238,17 @@ class Battery:
         -------
         (soc_new, power_applied, ohmic_loss, limited)
         """
-        power_applied, limited = self.clip_power(power_terminal, soc)
+        power_applied, limited = self.clip_power(power_terminal, soc, dt)
         current, current_limited = self.current(power_applied, soc)
         limited = limited or current_limited
 
         ohmic_loss = current**2 * self.internal_resistance
         delta_ah = current * dt / 3600.0
         soc_new = soc - delta_ah / self.capacity_ah
-        return float(np.clip(soc_new, 0.0, 1.0)), power_applied, ohmic_loss, limited
+        clipped = float(np.clip(soc_new, self.soc_min, self.soc_max))
+        if clipped != soc_new:
+            limited = True
+        return clipped, power_applied, ohmic_loss, limited
 
     def is_depleted(self, soc: float) -> bool:
         return soc <= self.soc_min + 1e-9

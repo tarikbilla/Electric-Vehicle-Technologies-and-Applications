@@ -3,10 +3,14 @@
 Two independent methods are evaluated and cross-checked:
 
 *Analytic*
-    A single cycle is simulated, its net consumption per kilometre is taken and
-    the usable battery energy is divided by it.  Fast, and the standard way a
-    certification range figure is derived, but it assumes the consumption is
-    independent of the state of charge.
+    A single cycle is simulated and the usable battery energy is divided by its
+    consumption per kilometre.  The division must be done at the *open-circuit*
+    level, because that is where the usable energy is defined: coulomb counting
+    makes the SOC window hold ``integral(V_oc dQ)``, not
+    ``integral(P_terminal dt)``.  Dividing the usable energy by the terminal
+    consumption instead would mix the two and overstate the range by roughly
+    the pack's ohmic loss - about 2.4 % here - which would then masquerade as a
+    disagreement between the two methods.
 
 *Integrated*
     The cycle is repeated, carrying the state of charge from one repetition to
@@ -14,8 +18,11 @@ Two independent methods are evaluated and cross-checked:
     ohmic loss as the open-circuit voltage falls towards the end of the
     discharge, so it is the primary result.
 
-The two agreeing to within a per cent is a useful self-check on the energy
-book-keeping.
+With both methods on the same footing, what remains between them is the real
+effect: the analytic method assumes consumption is independent of the state of
+charge, while the integrated one sees the ohmic loss grow as the open-circuit
+voltage falls.  The gap is therefore a genuine self-check, and a large one
+would point at an error in the energy book-keeping.
 """
 
 from __future__ import annotations
@@ -39,9 +46,11 @@ class RangeResult:
     range_integrated_km: float
     consumption_kwh_per_100km: float
     consumption_wh_per_km: float
+    consumption_internal_wh_per_km: float
     usable_energy_kwh: float
     energy_delivered_kwh: float
     cycles_completed: float
+    truncated: bool
     soc_trace: np.ndarray
     distance_trace: np.ndarray      # km
     first_cycle: SimulationResult
@@ -62,6 +71,7 @@ class RangeResult:
             "method_disagreement_pct": self.disagreement_pct,
             "consumption_kwh_per_100km": self.consumption_kwh_per_100km,
             "consumption_wh_per_km": self.consumption_wh_per_km,
+            "consumption_internal_wh_per_km": self.consumption_internal_wh_per_km,
             "usable_energy_kwh": self.usable_energy_kwh,
             "energy_delivered_kwh": self.energy_delivered_kwh,
             "cycles_completed": self.cycles_completed,
@@ -72,14 +82,18 @@ def range_on_cycle(
     ps: ParameterSet,
     cycle: DrivingCycle,
     auxiliary_power: float | None = None,
-    max_repeats: int = 100,
+    max_repeats: int = 400,
 ) -> RangeResult:
     """Range on a full battery for the given cycle."""
     simulator = CycleSimulator(ps, auxiliary_power=auxiliary_power)
     battery = simulator.battery
 
     first = simulator.run(cycle, soc_start=battery.soc_max)
-    consumption_per_km = first.energy_net / first.total_distance_km   # J/km
+    if first.total_distance_km <= 0:
+        raise ValueError(f"{cycle.name} covers no distance")
+    # Both sides of this division are open-circuit quantities; see the module
+    # docstring for why the terminal figure must not be used here.
+    consumption_per_km = first.energy_internal / first.total_distance_km   # J/km
     if consumption_per_km <= 0:
         raise ValueError(
             "cycle consumes no net energy; check the regeneration parameters"
@@ -87,6 +101,15 @@ def range_on_cycle(
     range_analytic = battery.usable_energy / consumption_per_km
 
     # ---------------------------------------------------- integrated method
+    if abs(float(cycle.speed[-1]) - float(cycle.speed[0])) > 0.5:
+        raise ValueError(
+            f"{cycle.name} does not start and end at the same speed "
+            f"({cycle.speed[0] * MPS_TO_KPH:.1f} vs "
+            f"{cycle.speed[-1] * MPS_TO_KPH:.1f} km/h). Repeating it would "
+            "discard the kinetic energy difference at every boundary and "
+            "bias the range. Use a cycle that returns to its starting speed."
+        )
+
     soc = battery.soc_max
     distance = 0.0
     energy = 0.0
@@ -94,7 +117,11 @@ def range_on_cycle(
     soc_points = [soc]
     distance_points = [0.0]
 
-    while not battery.is_depleted(soc) and repeats < max_repeats:
+    truncated = False
+    while not battery.is_depleted(soc):
+        if repeats >= max_repeats:
+            truncated = True
+            break
         result = simulator.run(cycle, soc_start=soc, stop_when_empty=True)
         # Sub-sample the intra-cycle trace so the SOC curve stays smooth.
         step = max(1, result.time.size // 200)
@@ -110,6 +137,14 @@ def range_on_cycle(
         if result.total_distance < 1.0:       # no progress, avoid a dead loop
             break
 
+    if truncated:
+        raise RuntimeError(
+            f"the battery was still not empty after {max_repeats} repeats of "
+            f"{cycle.name} ({distance / 1000.0:.0f} km covered). Raise "
+            f"max_repeats, or use a longer cycle: a short profile needs many "
+            f"repeats to drain the pack."
+        )
+
     range_integrated = distance / 1000.0
     cycles_completed = distance / cycle.distance
 
@@ -119,9 +154,11 @@ def range_on_cycle(
         range_integrated_km=range_integrated,
         consumption_kwh_per_100km=first.consumption_kwh_per_100km,
         consumption_wh_per_km=first.consumption_wh_per_km,
+        consumption_internal_wh_per_km=first.consumption_internal_wh_per_km,
         usable_energy_kwh=battery.usable_energy_kwh,
         energy_delivered_kwh=energy / J_PER_KWH,
         cycles_completed=cycles_completed,
+        truncated=truncated,
         soc_trace=np.asarray(soc_points),
         distance_trace=np.asarray(distance_points),
         first_cycle=first,

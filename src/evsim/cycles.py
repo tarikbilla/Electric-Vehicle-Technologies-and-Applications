@@ -3,9 +3,14 @@
 Three sources of speed profiles are supported:
 
 ``NEDC``
-    Built **exactly** from its regulatory definition (UNECE R101).  The NEDC is
-    specified as a table of idle / constant-acceleration / constant-speed
-    segments, so the reconstruction is bit-for-bit correct: 1180 s, 11.007 km.
+    Rebuilt from its regulatory definition (UNECE R83 Annex 4a), which tabulates
+    the cycle as idle / constant-acceleration / constant-speed segments.  The
+    EUDC half reproduces the official 6.955 km exactly.  The ECE-15 urban half
+    integrates to 1.005 km against the regulatory 1.013 km, a shortfall of 8 m
+    per repetition, so the assembled cycle is 1180 s and 10.975 km against the
+    official 11.007 km - low by 0.29 %.  The residual sits in the published
+    segment table itself, whose durations sum to 194 s rather than 195 s; the
+    missing second is carried in the final idle here.
 
 ``WLTC Class 3b``
     The official trace is a 1800-point table published in UNECE GTR 15 and is
@@ -51,7 +56,30 @@ class DrivingCycle:
     # ------------------------------------------------------------- properties
     @property
     def dt(self) -> float:
-        return float(self.time[1] - self.time[0])
+        """Nominal sample interval [s]. Use ``intervals`` for a ragged grid."""
+        return float(np.median(np.diff(self.time)))
+
+    @property
+    def intervals(self) -> np.ndarray:
+        """Duration each sample represents [s].
+
+        Interior samples own half of the gap on either side; the two endpoints
+        own half of their single neighbouring gap.  Computing this properly
+        rather than assuming a uniform grid matters for a profile loaded from
+        CSV, which may be sampled finely while driving and coarsely at a
+        standstill.
+        """
+        gaps = np.diff(self.time)
+        weights = np.zeros(self.time.size)
+        weights[:-1] += 0.5 * gaps
+        weights[1:] += 0.5 * gaps
+        return weights
+
+    @property
+    def uniform(self) -> bool:
+        """Whether the profile is sampled on a uniform time grid."""
+        gaps = np.diff(self.time)
+        return bool(np.allclose(gaps, gaps[0], rtol=1e-6, atol=1e-9))
 
     @property
     def duration(self) -> float:
@@ -88,12 +116,8 @@ class DrivingCycle:
 
     @property
     def stop_time(self) -> float:
-        """Time spent at standstill [s], measured on the sample grid."""
-        stopped = self.speed <= 0.1
-        # Interior samples own a full dt, the two endpoints only half of one.
-        weight = np.full(self.speed.size, self.dt)
-        weight[0] = weight[-1] = 0.5 * self.dt
-        return float(np.sum(weight[stopped]))
+        """Time spent at standstill [s]."""
+        return float(np.sum(self.intervals[self.speed <= 0.1]))
 
     @property
     def max_acceleration(self) -> float:
@@ -183,7 +207,7 @@ def nedc() -> DrivingCycle:
         speed=speed_kph * KPH_TO_MPS,
         phases={
             "Urban (4 x ECE-15)": (0, 781),
-            "Extra-urban (EUDC)": (780, speed_kph.size),
+            "Extra-urban (EUDC)": (781, speed_kph.size),
         },
         synthetic=False,
         description="UNECE R101 New European Driving Cycle, exact reconstruction",
