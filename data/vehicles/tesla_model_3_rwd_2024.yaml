@@ -1,0 +1,288 @@
+# =============================================================================
+# Vehicle parameter set - Tesla Model 3 RWD ("Highland", 2024 model year)
+# =============================================================================
+# Every entry carries:
+#   value    : numeric value in the stated unit
+#   unit     : SI or stated engineering unit
+#   assumed  : true  -> not published by the manufacturer, engineering estimate
+#              false -> taken from an official / homologation / measured source
+#   source   : provenance of the value
+#
+# Entries with `assumed: true` are collected automatically into the assumption
+# register and are rendered IN RED in the report (see FR-10 of DOCS/PRD.md).
+# =============================================================================
+
+meta:
+  name: Tesla Model 3 RWD (Highland)
+  model_year: 2024
+  market: Europe (WLTP)
+  drivetrain: Single rear motor, single-speed reduction gear
+  battery_chemistry: LFP (lithium iron phosphate)
+
+# ----------------------------------------------------------------- mass & geometry
+mass:
+  curb_mass:
+    value: 1765.0
+    unit: kg
+    assumed: false
+    source: Tesla EU technical data sheet, Model 3 RWD 2024 (kerb mass incl. 75 kg driver)
+  test_payload:
+    value: 100.0
+    unit: kg
+    assumed: true
+    source: "WLTP test mass = kerb + 25 kg; 100 kg chosen as driver+luggage for a
+             realistic single-occupant run"
+  rotational_mass_factor:
+    value: 1.04
+    unit: "-"
+    assumed: true
+    source: "Typical single-speed BEV value (Ehsani, Modern Electric Vehicles, Tab. 2.2);
+             lambda = 1 + J_eq/(m*r^2)"
+  cg_height:
+    value: 0.46
+    unit: m
+    assumed: true
+    source: "Skateboard battery pack -> very low CG; literature range 0.45-0.50 m for Model 3"
+  wheelbase:
+    value: 2.875
+    unit: m
+    assumed: false
+    source: Tesla Model 3 dimensional data sheet
+  rear_axle_static_load_fraction:
+    value: 0.52
+    unit: "-"
+    assumed: true
+    source: "Measured 48/52 front/rear distribution reported for single-motor Model 3"
+
+# ----------------------------------------------------------------- aerodynamics & tyres
+aerodynamics:
+  drag_coefficient:
+    value: 0.219
+    unit: "-"
+    assumed: false
+    source: Tesla published Cd for Model 3 Highland (2024)
+  frontal_area:
+    value: 2.22
+    unit: m^2
+    assumed: true
+    source: "Not published. Estimated as 0.83 * width * height = 0.83*1.933*1.441"
+  air_density:
+    value: 1.204
+    unit: kg/m^3
+    assumed: false
+    source: ISO 1204 standard air, 20 degC, 101.325 kPa
+
+tyres:
+  size: 235/45 R18
+  dynamic_radius:
+    value: 0.3323
+    unit: m
+    assumed: false
+    source: "Rolling circumference 2088 mm (ETRTO for 235/45 R18) / (2*pi)"
+  rolling_resistance_coefficient:
+    value: 0.0080
+    unit: "-"
+    assumed: true
+    source: "EU tyre label class A-B low rolling resistance OE tyre; f_r = 0.008 at 20 degC"
+  rolling_resistance_speed_coefficient:
+    value: 1.2e-6
+    unit: s^2/m^2
+    assumed: true
+    source: "f_r(v) = f_r0 + k*v^2, k typical for passenger car radials (Mitschke/Wallentowitz)"
+  peak_friction_coefficient:
+    value: 0.85
+    unit: "-"
+    assumed: true
+    source: "Dry asphalt, summer tyre, launch-control traction limit"
+
+# ----------------------------------------------------------------- motor & transmission
+motor:
+  type: Interior permanent-magnet synchronous machine (IPMSM)
+  peak_power:
+    value: 208000.0
+    unit: W
+    assumed: false
+    source: Tesla / EU type approval, Model 3 RWD 2024 (208 kW)
+  peak_torque:
+    value: 420.0
+    unit: N*m
+    assumed: false
+    source: Tesla technical data, Model 3 RWD (420 N*m shaft torque)
+  max_speed:
+    value: 17900.0
+    unit: rpm
+    assumed: true
+    source: "Not published; Model 3 rear drive unit teardowns report ~17 900-18 000 rpm"
+  continuous_power_fraction:
+    value: 0.55
+    unit: "-"
+    assumed: true
+    source: "Thermal derating; continuous rating typically 50-60 % of peak for liquid-cooled PMSM"
+  # Loss model (motor + inverter combined):
+  #   P_loss = k_copper*T^2 + k_iron*w + k_windage*w^3 + P_constant
+  #   (Larminie & Lowry, Electric Vehicle Technology Explained, 2nd ed., ch. 7)
+  loss_k_copper:
+    value: 0.080
+    unit: W/(N*m)^2
+    assumed: true
+    source: "Calibrated so peak combined efficiency ~96 % and ~93 % at peak power"
+  loss_k_iron:
+    value: 0.50
+    unit: W/(rad/s)
+    assumed: true
+    source: "Calibrated, as above"
+  loss_k_windage:
+    value: 5.0e-6
+    unit: W/(rad/s)^3
+    assumed: true
+    source: "Calibrated, as above"
+  loss_p_constant:
+    value: 400.0
+    unit: W
+    assumed: true
+    source: "Inverter switching + control electronics standby losses"
+
+transmission:
+  gear_ratio:
+    value: 9.0
+    unit: "-"
+    assumed: true
+    source: "Not published; independent teardown of Model 3 rear drive unit gives 9.0:1"
+  efficiency:
+    value: 0.97
+    unit: "-"
+    assumed: true
+    source: "Single-stage helical reduction + differential, typical 96-98 %"
+
+# ----------------------------------------------------------------- battery
+battery:
+  gross_capacity:
+    value: 62.5
+    unit: kWh
+    assumed: true
+    source: "Not published. LFP pack, teardown/BMS logs report ~62.5 kWh gross"
+  usable_fraction:
+    value: 0.96
+    unit: "-"
+    assumed: true
+    source: "LFP allows a wide SOC window (charge to 100 % recommended); 4 % buffer"
+  nominal_voltage:
+    value: 345.0
+    unit: V
+    assumed: true
+    source: "LFP prismatic cells, ~106s configuration at 3.25 V/cell nominal"
+  internal_resistance:
+    value: 0.075
+    unit: ohm
+    assumed: true
+    source: "Pack-level DC resistance at 25 degC; typical for a 60 kWh LFP pack"
+  max_discharge_power:
+    value: 220000.0
+    unit: W
+    assumed: true
+    source: "Must cover motor peak power plus losses"
+  max_charge_power:
+    value: 70000.0
+    unit: W
+    assumed: true
+    source: "Regenerative braking limited to ~70 kW on single-motor Model 3"
+  soc_min:
+    value: 0.0
+    unit: "-"
+    assumed: false
+    source: "Range is defined from 100 % to 0 % of the usable window"
+  soc_max:
+    value: 1.0
+    unit: "-"
+    assumed: false
+    source: "Full battery per the project brief"
+  # Open-circuit voltage as a fraction of nominal voltage vs state of charge.
+  # LFP has a characteristically flat plateau between ~20 % and ~90 % SOC.
+  ocv_soc_points:  [0.00, 0.05, 0.10, 0.20, 0.50, 0.80, 0.90, 0.95, 1.00]
+  ocv_voltage_pu:  [0.870, 0.925, 0.950, 0.972, 0.995, 1.017, 1.031, 1.047, 1.078]
+  ocv_assumed: true
+  ocv_source: "Normalised LFP cell OCV curve (A123/CATL datasheets), scaled to pack level"
+
+# ----------------------------------------------------------------- regeneration & brakes
+regeneration:
+  enabled: true
+  max_regen_power:
+    value: 70000.0
+    unit: W
+    assumed: true
+    source: "Observed regen ceiling on single-motor Model 3 (~70 kW)"
+  max_regen_torque_fraction:
+    value: 0.60
+    unit: "-"
+    assumed: true
+    source: "Regen shaft torque limited to ~60 % of traction peak torque"
+  cutoff_speed:
+    value: 1.4
+    unit: m/s
+    assumed: true
+    source: "Regen blends out below ~5 km/h, friction brakes take over"
+  blend_speed:
+    value: 4.2
+    unit: m/s
+    assumed: true
+    source: "Linear blend-in of regen between cutoff (5 km/h) and 15 km/h"
+
+# ----------------------------------------------------------------- auxiliaries
+auxiliaries:
+  base_load:
+    value: 300.0
+    unit: W
+    assumed: true
+    source: "12 V systems, pumps, computer, lights - measured idle draw ~250-350 W"
+  hvac_load:
+    value: 0.0
+    unit: W
+    assumed: true
+    source: "WLTP certification is run with auxiliaries off; set >0 for a real-world scenario"
+
+# ----------------------------------------------------------------- environment
+environment:
+  gravity:
+    value: 9.80665
+    unit: m/s^2
+    assumed: false
+    source: ISO 80000-3 standard gravity
+  road_grade:
+    value: 0.0
+    unit: rad
+    assumed: false
+    source: "WLTP and NEDC are flat-road cycles"
+  headwind:
+    value: 0.0
+    unit: m/s
+    assumed: false
+    source: "Still air per cycle definition"
+
+# ----------------------------------------------------------------- published reference data
+# Used only for VALIDATION of the model - never as model input.
+reference:
+  acceleration_0_100_kph:
+    value: 6.1
+    unit: s
+    assumed: false
+    source: Tesla published figure, Model 3 RWD 2024 (incl. 1-ft rollout)
+  top_speed:
+    value: 201.0
+    unit: km/h
+    assumed: false
+    source: Tesla published figure (electronically limited)
+  wltp_range:
+    value: 513.0
+    unit: km
+    assumed: false
+    source: Tesla EU data sheet, Model 3 RWD 2024, 18-inch wheels
+  wltp_consumption:
+    value: 13.2
+    unit: kWh/100km
+    assumed: false
+    source: EU type-approval combined WLTP consumption (incl. charging losses)
+  speed_limiter:
+    value: 201.0
+    unit: km/h
+    assumed: false
+    source: Tesla published electronic limiter
