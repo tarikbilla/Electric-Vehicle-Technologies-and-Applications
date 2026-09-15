@@ -68,10 +68,20 @@ def test_available_force_never_exceeds_either_limit(result: PerformanceResult) -
     assert np.all(result.available_force <= result.adhesion_force + 1e-6)
 
 
-def test_resistance_is_the_sum_of_rolling_and_drag_on_the_flat(
+def test_resistance_is_the_sum_of_its_components_on_the_flat(
     result: PerformanceResult,
 ) -> None:
-    assert np.allclose(result.resistance, result.rolling + result.aerodynamic, atol=1e-6)
+    assert np.allclose(
+        result.resistance, result.mechanical + result.aerodynamic, atol=1e-6
+    )
+
+
+def test_the_textbook_form_under_predicts_the_road_load(
+    result: PerformanceResult,
+) -> None:
+    """Reported so the report can show the gap rather than hide it."""
+    fast = result.speed > mps(100.0)
+    assert np.all(result.resistance_physical[fast] < result.resistance[fast])
 
 
 def test_top_speed_is_set_by_the_limiter_on_this_vehicle(
@@ -103,7 +113,7 @@ def test_surplus_force_vanishes_when_the_force_balance_binds(
     """With enough drag the top speed is where available force meets resistance."""
     draggy = PerformanceModel(
         vehicle.override(
-            reference__speed_limiter=0.0, aerodynamics__drag_coefficient=0.60
+            reference__speed_limiter=0.0, road_load__coastdown_f2=1.20
         )
     )
     v_top, reason = draggy.top_speed()
@@ -142,13 +152,9 @@ def test_extra_mass_slows_the_car_down(vehicle: ParameterSet) -> None:
 
 def test_more_drag_lowers_the_top_speed(vehicle: ParameterSet) -> None:
     draggy = PerformanceModel(
-        vehicle.override(
-            aerodynamics__drag_coefficient=0.45, reference__speed_limiter=0.0
-        )
+        vehicle.override(road_load__coastdown_f2=0.90, reference__speed_limiter=0.0)
     )
     slippery = PerformanceModel(
-        vehicle.override(
-            aerodynamics__drag_coefficient=0.20, reference__speed_limiter=0.0
-        )
+        vehicle.override(road_load__coastdown_f2=0.30, reference__speed_limiter=0.0)
     )
     assert draggy.top_speed()[0] < slippery.top_speed()[0]
